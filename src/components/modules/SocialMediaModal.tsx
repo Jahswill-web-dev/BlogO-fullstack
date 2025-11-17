@@ -1,94 +1,96 @@
-import React from 'react'
+'use client'
+
 import {
-  XIcon,
-  LinkedinIcon,
-  TwitterIcon,
-  FacebookIcon,
-  InstagramIcon,
-  YoutubeIcon,
-} from 'lucide-react'
+  FaLinkedin,
+  FaTwitter,
+  FaFacebook,
+  FaInstagram,
+  FaYoutube,
+} from "react-icons/fa";
+
+
+
 interface SocialMediaModalProps {
   isOpen: boolean
   onClose: () => void
   onSelect: (platform: string) => void
 }
+
 export function SocialMediaModal({
   isOpen,
   onClose,
   onSelect,
 }: SocialMediaModalProps) {
   if (!isOpen) return null
+
   const platforms = [
-    {
-      name: 'LinkedIn',
-      icon: LinkedinIcon,
-      color: 'bg-blue-600 hover:bg-blue-700',
-    },
-    {
-      name: 'Twitter',
-      icon: TwitterIcon,
-      color: 'bg-sky-500 hover:bg-sky-600',
-    },
-    {
-      name: 'Facebook',
-      icon: FacebookIcon,
-      color: 'bg-blue-700 hover:bg-blue-800',
-    },
-    {
-      name: 'Instagram',
-      icon: InstagramIcon,
-      color:
-        'bg-gradient-to-br from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600',
-    },
-    {
-      name: 'YouTube',
-      icon: YoutubeIcon,
-      color: 'bg-red-600 hover:bg-red-700',
-    },
-  ]
+  {
+    name: "LinkedIn",
+    icon: FaLinkedin,
+    color: "text-blue-600 hover:bg-blue-50",
+  },
+  {
+    name: "Twitter",
+    icon: FaTwitter,
+    color: "text-sky-500 hover:bg-sky-50",
+  },
+  {
+    name: "Facebook",
+    icon: FaFacebook,
+    color: "text-blue-700 hover:bg-blue-50",
+  },
+  {
+    name: "Instagram",
+    icon: FaInstagram,
+    color: "text-pink-600 hover:bg-pink-50",
+  },
+  {
+    name: "YouTube",
+    icon: FaYoutube,
+    color: "text-red-600 hover:bg-red-50",
+  },
+];
+
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8 relative animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/20">
+      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="Close modal"
         >
-          <XIcon className="w-6 h-6" />
+          {/* <X className="w-5 h-5" /> */}
         </button>
+
         {/* Header */}
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Choose Your Platform
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-1">
+            Choose Platform
           </h2>
-          <p className="text-gray-600">
-            Select which social media platform you want to generate content for
+          <p className="text-sm text-gray-500">
+            Select a social media platform
           </p>
         </div>
+
         {/* Platform Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-3">
           {platforms.map((platform) => {
             const Icon = platform.icon
             return (
               <button
                 key={platform.name}
                 onClick={() => onSelect(platform.name)}
-                className={`${platform.color} text-white p-6 rounded-xl transition-all duration-200 transform hover:scale-105 hover:shadow-lg flex flex-col items-center justify-center space-y-3`}
+                className={`${platform.color} bg-white border border-gray-200 p-4 rounded-lg transition-all duration-150 hover:border-gray-300 flex flex-col items-center justify-center space-y-2`}
               >
-                <Icon className="w-10 h-10" />
-                <span className="font-semibold text-lg">{platform.name}</span>
+                <Icon className="w-4 h-4 cursor-pointer" />
+                <span className="font-medium text-xs text-gray-700">
+                  {platform.name}
+                </span>
               </button>
             )
           })}
-        </div>
-        {/* Cancel Button */}
-        <div className="mt-8 text-center">
-          <button
-            onClick={onClose}
-            className="text-gray-600 hover:text-gray-800 font-medium transition-colors"
-          >
-            Cancel
-          </button>
         </div>
       </div>
     </div>

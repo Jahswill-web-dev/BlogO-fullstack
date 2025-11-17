@@ -1,109 +1,125 @@
-import React, { useState } from 'react'
-import { RocketIcon, SparklesIcon, XIcon } from 'lucide-react'
-import { SocialMediaModal } from './SocialMediaModal'
-export function StartupInfoPage() {
+"use client";
+
+import React, { useState } from "react";
+import { RocketIcon, SparklesIcon, XIcon, ArrowRightIcon } from "lucide-react";
+import { SocialMediaModal } from "@/components/modules/SocialMediaModal";
+import { useRouter } from "next/navigation";
+
+export default function StartupInfoPage() {
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
-    name: '',
-    industry: '',
-    productDescription: '',
+    name: "",
+    industry: "",
+    productDescription: "",
     targetAudience: [] as string[],
-    mainProblems: '',
-    keyBenefits: '',
-  })
-  const [audienceInput, setAudienceInput] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
+    mainProblems: "",
+    keyBenefits: "",
+  });
+
+  const [audienceInput, setAudienceInput] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const handleChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
+    >
   ) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-    }))
-  }
+    }));
+  };
+
   const handleAudienceInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    // Check if space was pressed and there's text before it
-    if (value.endsWith(' ') && value.trim()) {
-      const newTag = value.trim()
+    const value = e.target.value;
+    if (value.endsWith(" ") && value.trim()) {
+      const newTag = value.trim();
       if (newTag && !formData.targetAudience.includes(newTag)) {
         setFormData((prev) => ({
           ...prev,
           targetAudience: [...prev.targetAudience, newTag],
-        }))
+        }));
       }
-      setAudienceInput('')
+      setAudienceInput("");
     } else {
-      setAudienceInput(value)
+      setAudienceInput(value);
     }
-  }
-  const handleAudienceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && audienceInput.trim()) {
-      e.preventDefault()
-      const newTag = audienceInput.trim()
+  };
+
+  const handleAudienceKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (e.key === "Enter" && audienceInput.trim()) {
+      e.preventDefault();
+      const newTag = audienceInput.trim();
       if (newTag && !formData.targetAudience.includes(newTag)) {
         setFormData((prev) => ({
           ...prev,
           targetAudience: [...prev.targetAudience, newTag],
-        }))
+        }));
       }
-      setAudienceInput('')
+      setAudienceInput("");
     } else if (
-      e.key === 'Backspace' &&
+      e.key === "Backspace" &&
       !audienceInput &&
       formData.targetAudience.length > 0
     ) {
       setFormData((prev) => ({
         ...prev,
         targetAudience: prev.targetAudience.slice(0, -1),
-      }))
+      }));
     }
-  }
+  };
+
   const removeAudienceTag = (tagToRemove: string) => {
     setFormData((prev) => ({
       ...prev,
-      targetAudience: prev.targetAudience.filter((tag) => tag !== tagToRemove),
-    }))
-  }
+      targetAudience: prev.targetAudience.filter(
+        (tag) => tag !== tagToRemove
+      ),
+    }));
+  };
+
   const handleGenerate = (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsModalOpen(true)
-  }
+    e.preventDefault();
+    setIsModalOpen(true);
+  };
+
   const handlePlatformSelect = (platform: string) => {
-    console.log('Selected platform:', platform)
-    console.log('Form data:', formData)
-    setIsModalOpen(false)
-    // Add your generation logic here with the selected platform
-  }
+    console.log("Selected platform:", platform);
+    console.log("Form data:", formData);
+    setIsModalOpen(false);
+
+    router.push("/posts");
+  };
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-zinc-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
-          <div className="flex items-center justify-center mb-4">
-            <RocketIcon className="w-12 h-12 text-blue-600" />
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <RocketIcon className="w-5 h-5 text-gray-900" />
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Tell us about your startup
+            </h1>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            Tell Us About Your Startup
-          </h1>
-          <p className="text-lg text-gray-600">
-            Share your vision and we'll help bring it to life
+          <p className="text-sm text-gray-500">
+            Share your vision and we'll help create your content
           </p>
         </div>
+
         {/* Form */}
-        <form
-          onSubmit={handleGenerate}
-          className="bg-white rounded-2xl shadow-xl p-8 space-y-6"
-        >
-          {/* Name */}
+        <form onSubmit={handleGenerate} className="space-y-6">
+          {/* NAME */}
           <div>
             <label
               htmlFor="name"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
-              Name *
+              Name
             </label>
             <input
               type="text"
@@ -112,17 +128,19 @@ export function StartupInfoPage() {
               value={formData.name}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full px-3 py-2 border-b border-gray-200 
+              focus:border-gray-900 transition-colors outline-none text-sm"
               placeholder="Enter your startup name"
             />
           </div>
-          {/* Industry */}
+
+          {/* INDUSTRY */}
           <div>
             <label
               htmlFor="industry"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
-              Select Industry *
+              Industry
             </label>
             <select
               id="industry"
@@ -130,7 +148,8 @@ export function StartupInfoPage() {
               value={formData.industry}
               onChange={handleChange}
               required
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full px-3 py-2 border-b border-gray-200 
+              focus:border-gray-900 transition-colors outline-none text-sm bg-white"
             >
               <option value="">Select an industry</option>
               <option value="technology">Technology</option>
@@ -142,13 +161,14 @@ export function StartupInfoPage() {
               <option value="other">Other</option>
             </select>
           </div>
-          {/* Product Description */}
+
+          {/* PRODUCT DESCRIPTION */}
           <div>
             <label
               htmlFor="productDescription"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
-              Product Description *
+              Product Description
             </label>
             <textarea
               id="productDescription"
@@ -156,60 +176,67 @@ export function StartupInfoPage() {
               value={formData.productDescription}
               onChange={handleChange}
               required
-              rows={4}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+              rows={3}
+              className="w-full px-3 py-2 border-b border-gray-200 
+              focus:border-gray-900 transition-colors outline-none resize-none text-sm"
               placeholder="Describe what your product does"
             />
           </div>
-          {/* Target Audience */}
+
+          {/* TARGET AUDIENCE */}
           <div>
             <label
               htmlFor="targetAudience"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
-              Target Audience *
+              Target Audience
             </label>
-            <div className="w-full px-4 py-3 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all min-h-12 flex flex-wrap items-center gap-2">
+
+            <div className="w-full px-3 py-2 border-b border-gray-200 focus-within:border-gray-900 
+            transition-colors min-h-10 flex flex-wrap items-center gap-2">
               {formData.targetAudience.map((tag) => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
                 >
                   {tag}
                   <button
                     type="button"
                     onClick={() => removeAudienceTag(tag)}
-                    className="hover:bg-blue-200 rounded-full p-0.5 transition-colors"
+                    className="hover:bg-gray-200 rounded p-0.5 transition-colors"
                   >
                     <XIcon className="w-3 h-3" />
                   </button>
                 </span>
               ))}
+
               <input
                 type="text"
                 id="targetAudience"
                 value={audienceInput}
                 onChange={handleAudienceInput}
                 onKeyDown={handleAudienceKeyDown}
-                className="flex-1 min-w-[120px] outline-none"
+                className="flex-1 min-w-[120px] outline-none text-sm"
                 placeholder={
                   formData.targetAudience.length === 0
-                    ? 'Type and press space to add (e.g., founders, investors)'
-                    : ''
+                    ? "Type and press space to add"
+                    : ""
                 }
               />
             </div>
-            <p className="mt-1 text-xs text-gray-500">
+
+            <p className="mt-1 text-xs text-gray-400">
               Press space or enter to add each audience type
             </p>
           </div>
-          {/* Main Problems Solved */}
+
+          {/* MAIN PROBLEMS */}
           <div>
             <label
               htmlFor="mainProblems"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
-              Main Problem(s) Solved *
+              Main Problems Solved
             </label>
             <textarea
               id="mainProblems"
@@ -218,17 +245,19 @@ export function StartupInfoPage() {
               onChange={handleChange}
               required
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+              className="w-full px-3 py-2 border-b border-gray-200 
+              focus:border-gray-900 transition-colors outline-none resize-none text-sm"
               placeholder="What problems does your product solve?"
             />
           </div>
-          {/* Key Benefits / Features */}
+
+          {/* KEY BENEFITS */}
           <div>
             <label
               htmlFor="keyBenefits"
-              className="block text-sm font-semibold text-gray-700 mb-2"
+              className="block text-sm font-medium text-gray-700 mb-1.5"
             >
-              Key Benefits / Features *
+              Key Benefits & Features
             </label>
             <textarea
               id="keyBenefits"
@@ -237,31 +266,31 @@ export function StartupInfoPage() {
               onChange={handleChange}
               required
               rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+              className="w-full px-3 py-2 border-b border-gray-200 
+              focus:border-gray-900 transition-colors outline-none resize-none text-sm"
               placeholder="What are the key benefits or features?"
             />
           </div>
-          {/* Generate Button */}
-          <div className="pt-4">
+
+          {/* BUTTON */}
+          <div className="pt-6">
             <button
               type="submit"
-              className="w-full bg-linear-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center space-x-2"
+              className="w-full bg-gray-900 text-white py-2.5 px-4 rounded 
+              text-sm font-medium hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
             >
-              <SparklesIcon className="w-6 h-6" />
-              <span>Generate</span>
+              <span>Generate Content</span>
+              <ArrowRightIcon className="w-4 h-4" />
             </button>
           </div>
         </form>
-        {/* Footer Note */}
-        <p className="text-center text-sm text-gray-500 mt-6">
-          All fields are required to generate your personalized content
-        </p>
       </div>
+
       <SocialMediaModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSelect={handlePlatformSelect}
       />
     </div>
-  )
+  );
 }
