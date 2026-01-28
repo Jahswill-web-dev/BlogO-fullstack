@@ -117,7 +117,7 @@ export default function WeeklyScheduler({
                 content:
                     "Excited to announce our new product launch! 🚀 We're revolutionizing the way startups connect with their audience.",
                 platform: "LinkedIn",
-                scheduledDate: makeDate(2, 10, 0), // Tue 10:00 (relative to week start)
+                scheduledDate: makeDate(1, 3, 0), // Tue 10:00 (relative to week start)
                 posted: false,
             },
             {
