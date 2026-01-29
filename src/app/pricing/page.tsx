@@ -19,15 +19,15 @@ export default function PricingPage() {
             {/* // Nav */}
             <Navbar />
             {/* // Main Pricing Section */}
-            <div>
+            <div className="pt-10">
                 {/* Heading and subheading text */}
-                <div className="text-center text-white text-4xl font-bold mb-4">
+                <div className="text-center text-white text-4xl font-bold mb-2">
                     Get your first year of Pro for $39
                 </div>
                 <p className="text-center text-gray-300 mb-3">
                     Only for the first 100 users. Then pricing switches to $19 monthly.
                 </p>
-                <p className="text-center text-gray-300 mb-8 text-sm italic">
+                <p className="text-center text-gray-300 text-xs italic">
                     Buy Now to secure your spot! Launching on Feb 25th.
                 </p>
                 {/* Cards section */}
