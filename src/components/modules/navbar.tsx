@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { GradientBorderButton } from "../ui/gradientBorderButton";
 
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
@@ -46,9 +47,9 @@ export default function Navbar() {
                     {/* Desktop CTA */}
                     <Link
                         href="/pricing"
-                        className="hidden md:inline-flex bg-[#0F1419] text-white px-4 py-2 rounded-md font-medium hover:bg-gray-200 transition"
+                        className="hidden md:inline-block"
                     >
-                        Get Early Access
+                        <GradientBorderButton buttonLabel="Get Early Access" />
                     </Link>
 
                     {/* Mobile Menu Button */}
@@ -74,7 +75,7 @@ export default function Navbar() {
                         exit="closed"
                         variants={menuVariants}
                         className="md:hidden overflow-hidden bg-[#0F1419] border-t border-white/10 px-4 space-y-4 text-gray-300
-                        flex flex-col pb-5 gap-2 pt-3"
+                        flex flex-col pb-5 gap-2 pt-3 justify-center items-center"
                     >
                         <Link href="#about" onClick={() => setIsOpen(false)}>About</Link>
                         <Link href="#features" onClick={() => setIsOpen(false)}>Features</Link>
@@ -82,9 +83,8 @@ export default function Navbar() {
 
                         <Link
                             href="/pricing"
-                            className="block text-center bg-[#0F1419] text-white py-2 rounded-md font-medium mt-4"
                         >
-                            Get Early Access
+                            <GradientBorderButton buttonLabel="Get Early Access" />
                         </Link>
                     </motion.div>
                 )}
