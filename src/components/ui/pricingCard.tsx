@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { GradientBorderButton } from "./gradientBorderButton";
+import { GradientBorderButton } from "./buttons/gradientBorderButton";
 import { SolidButton } from "./pricingButton";
 
 type PricingCardProps = {

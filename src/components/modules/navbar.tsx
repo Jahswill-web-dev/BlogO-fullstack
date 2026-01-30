@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import clsx from "clsx";
-import { GradientBorderButton } from "../ui/gradientBorderButton";
+import { GradientBorderButton } from "../ui/buttons/gradientBorderButton";
 
 type NavbarProps = {
     navClassName?: string;
