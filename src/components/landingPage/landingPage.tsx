@@ -26,16 +26,24 @@ export default function LandingPage() {
 
             </div>
             {/* My thoughts on the product, and this is for you section */}
-            <div>
+            <div className="h-screen bg-[#F9F9F9]">
 
             </div>
             {/* Final CTA section */}
-            <div>
-
+            <div className="h-screen bg-linear-to-b from-[#10060A] via-[#10060A] to-[#5C3FED]">
+                <div className="max-w-7xl mx-auto text-center">
+                    <h2 className="text-5xl text-white max-w-[563px]">Start attracting users today! Not empty engagement. </h2>
+                    <p className="text-[#F7F9FC] text-xl">
+                        Stop wondering what to post.
+                        Turn your SaaS into weeks of X content that attracts your saas users automatically.
+                    </p>
+                </div>
             </div>
             {/* Footer */}
-            <div>
-                <Footer />
+            <div className="bg-[#060507] py-5">
+                <div className="max-w-7xl mx-auto px-6">
+                    <Footer />
+                </div>
             </div>
         </div>
     )
