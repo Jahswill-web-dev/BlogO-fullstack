@@ -4,9 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import clsx from "clsx";
 import { GradientBorderButton } from "../ui/gradientBorderButton";
 
-export default function Navbar() {
+type NavbarProps = {
+    navClassName?: string;
+
+};
+
+
+export default function Navbar({ navClassName }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false);
     // Animation variants for mobile menu
     const menuVariants = {
@@ -19,7 +26,7 @@ export default function Navbar() {
         open: { rotate: 90 },
     };
     return (
-        <nav className="w-full bg-[#08060] border-b border-white/10">
+        <nav className={clsx("w-full border-b-2 border-white/10", navClassName)}>
             <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
 
                 {/* Logo */}
@@ -36,7 +43,7 @@ export default function Navbar() {
 
 
                 {/* Desktop Links */}
-                <div className="hidden md:flex items-center gap-8 text-gray-300">
+                <div className="hidden md:flex items-center gap-8 text-gray-300 font-medium">
                     <Link href="#about" className="hover:text-white">About</Link>
                     <Link href="#features" className="hover:text-white">Features</Link>
                     <Link href="#pricing" className="hover:text-white">Pricing</Link>
