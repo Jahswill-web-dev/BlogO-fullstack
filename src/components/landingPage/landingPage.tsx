@@ -30,10 +30,11 @@ export default function LandingPage() {
 
             </div>
             {/* Final CTA section */}
-            <div className="h-screen bg-linear-to-b from-[#10060A] via-[#10060A] to-[#5C3FED]">
-                <div className="max-w-7xl mx-auto text-center">
-                    <h2 className="text-5xl text-white max-w-[563px]">Start attracting users today! Not empty engagement. </h2>
-                    <p className="text-[#F7F9FC] text-xl">
+            <div className="h-screen bg-linear-to-b from-[#10060A] via-[#10060A] to-[#5C3FED]
+            pt-20">
+                <div className="max-w-7xl mx-auto text-center flex flex-col gap-6">
+                    <h2 className="text-5xl text-white max-w-[563px] mx-auto">Start attracting users today! Not empty engagement. </h2>
+                    <p className="text-[#F7F9FC] text-xl max-w-[563px] mx-auto">
                         Stop wondering what to post.
                         Turn your SaaS into weeks of X content that attracts your saas users automatically.
                     </p>
