@@ -27,12 +27,14 @@ export default function LandingPage() {
             <div>
 
             </div>
+            
             {/* CEO and Co-founders thoughts on the product */}
-            <div>
-                <div>
+            <div className="h-[60vh]">
+                <div className="max-w-7xl mx-auto px-2">
                     <h2>What Saas Founders should post on X(icon here)</h2>
                 </div>
             </div>
+
             {/* Who Its for section */}
             <div className=" 
                 h-[150vh] bg-[#F9F9F9]
@@ -43,6 +45,7 @@ export default function LandingPage() {
                     <WhoItsForSection />
                 </div>
             </div>
+
             {/* Final CTA section */}
             <div className="h-screen bg-linear-to-b from-[#10060A] via-[#10060A] to-[#5C3FED]
             pt-20">

@@ -7,7 +7,7 @@ export default function WhoItsForSection() {
             <div className="flex items-center">
                 {/* text */}
                 <div className="w-1/2">
-                    <h2 className="text-4xl">This is for you if:</h2>
+                    <h2 className="text-4xl mb-4">This is for you if:</h2>
                     <ul className="ml-5 list-disc list-inside space-y-2 text-[29px]">
                         <li>You want users without spending hours on content</li>
                         <li>You care more about attracting users than farming engagement</li>
@@ -29,14 +29,14 @@ export default function WhoItsForSection() {
                 </div>
             </div>
             {/* Who its not for section */}
-            <div className="flex flex-row-reverse items-center">
+            <div className="flex items-center">
                 {/* text */}
                 <div className="w-1/2">
-                    <h2 className="text-4xl">This is for you if:</h2>
+                    <h2 className="text-4xl mb-4">This is not for you if:</h2>
                     <ul className="ml-5 list-disc list-inside space-y-2 text-[29px]">
-                        <li>You want users without spending hours on content</li>
-                        <li>You care more about attracting users than farming engagement</li>
-                        <li>You want consistent visibility without thinking about X every day</li>
+                        <li>You want viral threads and growth hacks</li>
+                        <li>You enjoy manually crafting every post</li>
+                        <li>You're chasing followers instead of users</li>
                     </ul>
                 </div>
                 {/* Image */}
@@ -45,7 +45,7 @@ export default function WhoItsForSection() {
                         src="/x.svg"
                         width={600}
                         height={600}
-                        className="w-[408] h-[408] mr-auto"
+                        className="w-[408] h-[408] ml-auto"
                         alt="Who Its For Image"
                     />
                 </div>
