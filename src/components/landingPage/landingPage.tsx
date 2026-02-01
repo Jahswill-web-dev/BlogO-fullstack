@@ -35,7 +35,7 @@ export default function LandingPage() {
             </div>
             {/* Who Its for section */}
             <div className=" 
-                h-screen bg-[#F9F9F9]
+                h-[150vh] bg-[#F9F9F9]
                 bg-[linear-gradient(to_right,rgba(0,0,0,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.04)_1px,transparent_1px)]
                 bg-size-[40px_40px]
                 ">
