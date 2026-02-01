@@ -6,16 +6,16 @@ export default function WhoItsForSection() {
             {/* Who its for section */}
             <div className="flex items-center">
                 {/* text */}
-                <div className="w-1/2">
+                <div className="md:w-1/2">
                     <h2 className="text-4xl mb-4">This is for you if:</h2>
-                    <ul className="ml-5 list-disc list-inside space-y-2 text-[29px]">
+                    <ul className="ml-5 list-disc pl-6 space-y-2 text-[29px]">
                         <li>You want users without spending hours on content</li>
                         <li>You care more about attracting users than farming engagement</li>
                         <li>You want consistent visibility without thinking about X every day</li>
                     </ul>
                 </div>
                 {/* Image */}
-                <div className="w-1/2">
+                <div className="w-1/2 md:block hidden">
                     <Image
                         src="/check.svg"
                         width={600}
@@ -31,16 +31,16 @@ export default function WhoItsForSection() {
             {/* Who its not for section */}
             <div className="flex items-center">
                 {/* text */}
-                <div className="w-1/2">
+                <div className="md:w-1/2">
                     <h2 className="text-4xl mb-4">This is not for you if:</h2>
-                    <ul className="ml-5 list-disc list-inside space-y-2 text-[29px]">
+                    <ul className="ml-5 list-disc pl-6  space-y-2 text-[29px]">
                         <li>You want viral threads and growth hacks</li>
                         <li>You enjoy manually crafting every post</li>
                         <li>You're chasing followers instead of users</li>
                     </ul>
                 </div>
                 {/* Image */}
-                <div className="w-1/2">
+                <div className="w-1/2 hidden md:block">
                     <Image
                         src="/x.svg"
                         width={600}

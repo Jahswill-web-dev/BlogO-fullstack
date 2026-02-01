@@ -1,3 +1,4 @@
+import { HowItWorks } from "../modules/howItWorks";
 import Navbar from "../modules/navbar";
 import Pill from "../ui/pill";
 import { CTASection } from "./sections/cta";
@@ -24,10 +25,15 @@ export default function LandingPage() {
 
             </div>
             {/* How it works section */}
-            <div>
+            <div className="h-[200vh] bg-[#08060A]
+                bg-[linear-gradient(to_right,#BABABA1C_1px,transparent_1px),linear-gradient(to_bottom,#BABABA1C_1px,transparent_1px)]
+                bg-size-[40px_40px]">
+                <div className="max-w-7xl mx-auto h-full px-2 py-10">
+                    <HowItWorks />
 
+                </div>
             </div>
-            
+
             {/* CEO and Co-founders thoughts on the product */}
             <div className="h-[60vh]">
                 <div className="max-w-7xl mx-auto px-2">
