@@ -1,9 +1,10 @@
-import { HowItWorks } from "../modules/howItWorks";
+import { HowItWorks } from "./sections/howItWorks";
 import Navbar from "../modules/navbar";
 import Pill from "../ui/pill";
 import { CTASection } from "./sections/cta";
 import Footer from "./sections/footer";
 import WhoItsForSection from "./sections/whoItsForSection";
+import { ProblemSectionWrapper } from "./sections/problemSection";
 
 export default function LandingPage() {
     return (
@@ -20,9 +21,15 @@ export default function LandingPage() {
                     </div>
                 </div>
             </div>
-            {/* Second section */}
-            <div>
-
+            {/* Second/Problem section */}
+            <div className="
+                h-auto bg-[#F9F9F9]
+                bg-[linear-gradient(to_right,rgba(0,0,0,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.04)_1px,transparent_1px)]
+                bg-size-[40px_40px]
+                ">
+                <div className="max-w-7xl mx-auto px-6 pb-10">
+                    <ProblemSectionWrapper />
+                </div>
             </div>
             {/* How it works section */}
             <div className="h-[200vh] bg-[#08060A]

@@ -15,11 +15,11 @@ export function HowItWorksStep({
 }) {
     return (
         <div
-            className={`flex flex-col-reverse md:flex-row items-start ${reverse ? "md:flex-row-reverse" : ""
+            className={`flex flex-col-reverse md:flex-row items-center ${reverse ? "md:flex-row-reverse" : ""
                 }`}
         >
             {/* Text */}
-            <div className="md:w-1/2 p-4">
+            <div className="md:w-1/2 p-4 text-center">
                 <h3 className="text-xl font-bold">{title}</h3>
                 <p>{description}</p>
             </div>
