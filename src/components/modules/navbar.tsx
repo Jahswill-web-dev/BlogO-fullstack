@@ -9,11 +9,12 @@ import { GradientBorderButton } from "../ui/buttons/gradientBorderButton";
 
 type NavbarProps = {
     navClassName?: string;
+    mobileClassName?: string;
 
 };
 
 
-export default function Navbar({ navClassName }: NavbarProps) {
+export default function Navbar({ navClassName, mobileClassName }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false);
     // Animation variants for mobile menu
     const menuVariants = {
@@ -81,12 +82,14 @@ export default function Navbar({ navClassName }: NavbarProps) {
                         animate="open"
                         exit="closed"
                         variants={menuVariants}
-                        className="md:hidden overflow-hidden bg-[#0F1419] border-t border-white/10 px-4 space-y-4 text-gray-300
-                        flex flex-col pb-5 gap-2 pt-3 justify-center items-center"
+                        className={clsx(
+                            "md:hidden overflow-hidden bg-[#0F1419] border-t border-white/10 px-4 space-y-4 text-gray-300 flex flex-col pb-5 gap-2 pt-3 justify-center items-center",
+
+                            mobileClassName)}
                     >
-                        <Link href="#about" onClick={() => setIsOpen(false)}>About</Link>
-                        <Link href="#features" onClick={() => setIsOpen(false)}>Features</Link>
-                        <Link href="#pricing" onClick={() => setIsOpen(false)}>Pricing</Link>
+                        <Link href="/#about" onClick={() => setIsOpen(false)}>About</Link>
+                        <Link href="/#features" onClick={() => setIsOpen(false)}>Features</Link>
+                        <Link href="/pricing" onClick={() => setIsOpen(false)}>Pricing</Link>
 
                         <Link
                             href="/pricing"

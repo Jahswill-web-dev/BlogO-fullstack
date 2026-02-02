@@ -11,7 +11,7 @@ export default function LandingPage() {
         <div className="">
             {/* Navbar and Hero section */}
             <div className="h-auto bg-linear-to-b from-[#5C3FED] to-[#10060A]">
-                <Navbar />
+                <Navbar mobileClassName="bg-[#5C3FED]" />
                 {/* Hero section */}
                 <Hero />
             </div>
@@ -26,7 +26,7 @@ export default function LandingPage() {
                 </div>
             </div>
             {/* How it works section */}
-            <div className="h-[200vh] bg-[#08060A]
+            <div id="features" className="h-[200vh] bg-[#08060A]
                 bg-[linear-gradient(to_right,#BABABA1C_1px,transparent_1px),linear-gradient(to_bottom,#BABABA1C_1px,transparent_1px)]
                 bg-size-[40px_40px]">
                 <div className="max-w-7xl mx-auto h-full px-2 py-10">
@@ -36,7 +36,7 @@ export default function LandingPage() {
             </div>
 
             {/* CEO and Co-founders thoughts on the product */}
-            <div className="h-[60vh]">
+            <div id="about" className="h-[60vh]">
                 <div className="max-w-7xl mx-auto px-2">
                     <h2>What Saas Founders should post on X(icon here)</h2>
                 </div>
