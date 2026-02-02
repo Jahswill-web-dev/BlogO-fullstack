@@ -20,7 +20,10 @@ export function ProblemSection({
         >
             {/* Text */}
             <div className="md:w-1/2 p-4 text-[#5A5A5A]">
-                <h3 className="text-xl font-bold mb-4">{title}</h3>
+                <h3 className="text-xl font-bold mb-4 bg-linear-to-r from-[#10060A] to-[#5C3FED] bg-clip-text text-transparent">
+                    {title}
+                </h3>
+
                 <ul className="ml-5 list-disc pl-6  space-y-2">
                     {listItems.map((item, index) => (
                         <li key={index}>{item}</li>
@@ -70,7 +73,7 @@ export function ProblemSectionWrapper() {
                     reverse
                 />
 
-                
+
             </div>
         </div>
     )

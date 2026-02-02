@@ -15,6 +15,7 @@ export default function LandingPage() {
                 {/* Hero section */}
                 <Hero />
             </div>
+            
             {/* Second/Problem section */}
             <div className="
                 h-auto bg-[#F9F9F9]
