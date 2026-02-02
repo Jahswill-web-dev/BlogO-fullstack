@@ -54,7 +54,7 @@ export function ProblemSectionWrapper() {
                         "You post inconsistently, then disappear",
                         "When you do post, it doesn’t bring users",
                     ]}
-                    imageSrc="/images/frame1.png"
+                    imageSrc="/tweets.svg"
                     imageAlt="Frame 1"
                 />
 
@@ -65,7 +65,7 @@ export function ProblemSectionWrapper() {
                         "Writes posts your target users care about",
                         "Schedules them directly to X",
                     ]}
-                    imageSrc="/images/frame2.png"
+                    imageSrc="/tweets2.svg"
                     imageAlt="Frame 2"
                     reverse
                 />

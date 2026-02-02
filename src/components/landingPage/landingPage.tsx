@@ -1,25 +1,19 @@
 import { HowItWorks } from "./sections/howItWorks";
 import Navbar from "../modules/navbar";
-import Pill from "../ui/pill";
 import { CTASection } from "./sections/cta";
 import Footer from "./sections/footer";
 import WhoItsForSection from "./sections/whoItsForSection";
 import { ProblemSectionWrapper } from "./sections/problemSection";
+import { Hero } from "./sections/hero";
 
 export default function LandingPage() {
     return (
         <div className="">
             {/* Navbar and Hero section */}
-            <div className="h-screen bg-linear-to-b from-[#5C3FED] via-[#5C3FED] to-[#10060A]">
+            <div className="h-auto bg-linear-to-b from-[#5C3FED] to-[#10060A]">
                 <Navbar />
                 {/* Hero section */}
-                <div className="max-w-7xl mx-auto px-6 pt-8">
-                    <div className="flex gap-3 justify-center flex-wrap">
-                        <Pill text="No trend-chasing." />
-                        <Pill text="No generic AI tweets" />
-                        <Pill text="No empty engagement" />
-                    </div>
-                </div>
+                <Hero />
             </div>
             {/* Second/Problem section */}
             <div className="
