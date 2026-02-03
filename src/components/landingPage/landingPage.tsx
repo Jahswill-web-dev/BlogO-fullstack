@@ -15,7 +15,7 @@ export default function LandingPage() {
                 {/* Hero section */}
                 <Hero />
             </div>
-            
+
             {/* Second/Problem section */}
             <div className="
                 h-auto bg-[#F9F9F9]
@@ -27,7 +27,7 @@ export default function LandingPage() {
                 </div>
             </div>
             {/* How it works section */}
-            <div id="features" className="h-[200vh] bg-[#08060A]
+            <div id="features" className="h-auto bg-[#08060A]
                 bg-[linear-gradient(to_right,#BABABA1C_1px,transparent_1px),linear-gradient(to_bottom,#BABABA1C_1px,transparent_1px)]
                 bg-size-[40px_40px]">
                 <div className="max-w-7xl mx-auto h-full px-2 py-10">
@@ -45,7 +45,7 @@ export default function LandingPage() {
 
             {/* Who Its for section */}
             <div className=" 
-                h-[150vh] bg-[#F9F9F9]
+                h-auto bg-[#F9F9F9]
                 bg-[linear-gradient(to_right,rgba(0,0,0,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.04)_1px,transparent_1px)]
                 bg-size-[40px_40px]
                 ">
@@ -55,9 +55,9 @@ export default function LandingPage() {
             </div>
 
             {/* Final CTA section */}
-            <div className="h-screen bg-linear-to-b from-[#10060A] via-[#10060A] to-[#5C3FED]
+            <div className="h-auto bg-linear-to-b from-[#10060A] via-[#10060A] to-[#5C3FED]
             pt-20">
-                <div className="max-w-7xl mx-auto h-full">
+                <div className="max-w-7xl mx-auto h-full px-4 sm:px-2">
                     <CTASection />
                 </div>
             </div>

@@ -2,13 +2,16 @@ import Image from "next/image";
 
 export default function WhoItsForSection() {
     return (
-        <div className="h-full flex flex-col justify-around">
+        <div className="h-full flex flex-col justify-around py-10">
             {/* Who its for section */}
-            <div className="flex items-center">
+            <div className="flex items-center mb-5">
                 {/* text */}
                 <div className="md:w-1/2">
-                    <h2 className="text-4xl mb-4">This is for you if:</h2>
-                    <ul className="ml-5 list-disc pl-6 space-y-2 text-[29px]">
+                    <h2 className="bg-linear-to-r from-[#10060A] to-[#5C3FED] bg-clip-text text-transparent
+                    text-2xl sm:text-4xl mb-4 font-medium font-geist">
+                        This <i className="italic font-ibm-plex-serif">is</i> for you if:
+                    </h2>
+                    <ul className="flex flex-col gap-2 text-xl sm:text-2xl ml-5 list-disc pl-6 space-y-2">
                         <li>You want users without spending hours on content</li>
                         <li>You care more about attracting users than farming engagement</li>
                         <li>You want consistent visibility without thinking about X every day</li>
@@ -32,8 +35,12 @@ export default function WhoItsForSection() {
             <div className="flex items-center">
                 {/* text */}
                 <div className="md:w-1/2">
-                    <h2 className="text-4xl mb-4">This is not for you if:</h2>
-                    <ul className="ml-5 list-disc pl-6  space-y-2 text-[29px]">
+                    <h2 className="
+                    bg-linear-to-r from-[#10060A] to-[#5C3FED] bg-clip-text text-transparent 
+                    text-2xl sm:text-4xl mb-4 font-medium font-geist">
+                        This <i className="italic font-ibm-plex-serif">is not</i> for you if:
+                    </h2>
+                    <ul className="flex flex-col gap-2 text-xl sm:text-2xl ml-5 list-disc pl-6  space-y-2">
                         <li>You want viral threads and growth hacks</li>
                         <li>You enjoy manually crafting every post</li>
                         <li>You're chasing followers instead of users</li>

@@ -5,7 +5,7 @@ export default function Footer() {
     return (
         <div className="w-full">
             <div>
-                <div className="flex flex-row justify-between text-[#D8D8D8]">
+                <div className="flex flex-row justify-between text-[#D8D8D8] font-geist font-medium">
                     {/* texts.. */}
                     <div className="flex flex-col gap-2">
                         <p>No trend-chasing. </p>

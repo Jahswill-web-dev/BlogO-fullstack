@@ -1,4 +1,5 @@
 import Image from "next/image";
+import React from "react";
 
 export function ProblemSection({
     title,
@@ -7,7 +8,7 @@ export function ProblemSection({
     imageAlt,
     reverse = false,
 }: {
-    title: string;
+    title: React.ReactNode;
     listItems: string[];
     imageSrc: string;
     imageAlt: string;
@@ -19,7 +20,7 @@ export function ProblemSection({
                 }`}
         >
             {/* Text */}
-            <div className="md:w-1/2 p-4 text-[#5A5A5A]">
+            <div className="font-geist font-medium md:w-1/2 p-4 text-[#5A5A5A]">
                 <h3 className="text-xl font-bold mb-4 bg-linear-to-r from-[#10060A] to-[#5C3FED] bg-clip-text text-transparent">
                     {title}
                 </h3>
@@ -50,7 +51,13 @@ export function ProblemSectionWrapper() {
         <div className="h-full">
             <div className="text-white flex flex-col gap-4 justify-around h-full">
                 <ProblemSection
-                    title="Your Product Is Unnoticed Because:"
+                    title={
+                        <>
+                            Your Product Is <span className="italic font-ibm-plex-serif font-normal">
+                                Unnoticed
+                            </span> Because:
+                        </>
+                    }
                     listItems={[
                         "You don't know what to say",
                         "Writing tweets steals time from building",
@@ -62,7 +69,14 @@ export function ProblemSectionWrapper() {
                 />
 
                 <ProblemSection
-                    title="Use A Founder-First System That:"
+                    title={
+                        <>
+                            Use A <span className="italic font-ibm-plex-serif font-normal">
+                                Founder-First System
+                            </span> That:
+                        </>
+
+                    }
                     listItems={[
                         "Understands your SaaS",
                         "Writes posts your target users care about",
