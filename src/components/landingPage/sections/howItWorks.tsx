@@ -10,7 +10,7 @@ export function HowItWorksStep({
 }: {
     number: string;
     title: string;
-    description: string;
+    description: React.ReactNode;
     imageSrc: string;
     imageAlt: string;
     reverse?: boolean;
@@ -23,7 +23,7 @@ export function HowItWorksStep({
             {/* Text */}
             <div className="md:w-1/2 p-4 text-center">
                 <h3 className="italic font-medium font-ibm-plex-serif text-2xl">{number}</h3>
-                <h3 className="text-xl font-medium font-ibm-plex-serif">{title}</h3>
+                <h3 className="text-2xl md:text-3xl font-medium font-ibm-plex-serif">{title}</h3>
 
                 <p className="font-geist font-normal">{description}</p>
             </div>
@@ -51,16 +51,30 @@ export function HowItWorks() {
             <div className="text-white flex flex-col gap-4 justify-around h-full">
                 <HowItWorksStep
                     number="1"
-                    title="Tell us about your SaaS"
-                    description="Answer a few simple questions so we understand what you’re building, who it’s for, and the problem it solves."
+                    title="Define your Problem or Niche space"
+                    description={
+                        <>
+                            <div className="flex">
+                                <p>
+
+                                    Tell us the problem you solve or what you want to be known for on</p> <Image
+                                    alt="X icon"
+                                    src="/xicon.svg"
+                                    width={100}
+                                    height={100}
+                                    className="w-[30px] h-[30px] md:w-[100px] md:h-[100px]"
+                                />
+                            </div>
+                        </>
+                    }
                     imageSrc="/images/frame1.png"
                     imageAlt="Frame 1"
                 />
 
                 <HowItWorksStep
                     number="2"
-                    title="We generate targeted X content"
-                    description="We create weeks of posts designed to attract your target users, all written in a natural, indie-hacker tone — not generic AI tweets."
+                    title="We Create niche content"
+                    description="HackrPost creates niche content that attracts your target audience or Users and builds authority."
                     imageSrc="/images/frame2.png"
                     imageAlt="Frame 2"
                 />
@@ -73,6 +87,6 @@ export function HowItWorks() {
                     imageAlt="Frame 3"
                 />
             </div>
-        </div>
+        </div >
     )
 }

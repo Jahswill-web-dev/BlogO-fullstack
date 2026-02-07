@@ -32,16 +32,24 @@ export default function LandingPage() {
                 bg-size-[40px_40px]">
                 <div className="max-w-7xl mx-auto h-full px-2 py-10">
                     <HowItWorks />
-
                 </div>
             </div>
 
-            {/* CEO and Co-founders thoughts on the product */}
-            <div id="about" className="h-[60vh]">
-                <div className="max-w-7xl mx-auto px-2">
-                    <h2>What Saas Founders should post on X(icon here)</h2>
+            {/*  Co-founder thoughts on the product */}
+            <div
+                id="about"
+                className="h-[754px] bg-[linear-gradient(180.54deg,#E4DFFF_0.47%,#F9F9F9_99.54%)]"
+            >
+                <div className="max-w-7xl mx-auto px-3 h-full flex py-10">
+                    <h2 className="text-slate-900 text-2xl font-semibold">
+                        What Saas Founders should post on X (icon here)
+                    </h2>
+                    <p>
+
+                    </p>
                 </div>
             </div>
+
 
             {/* Who Its for section */}
             <div className=" 
