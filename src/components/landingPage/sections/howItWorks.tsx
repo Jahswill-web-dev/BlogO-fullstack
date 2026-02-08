@@ -21,11 +21,11 @@ export function HowItWorksStep({
                 }`}
         >
             {/* Text */}
-            <div className="md:w-1/2 p-4 text-center">
+            <div className="md:w-1/2 p-4 text-center max-w-[556px]">
                 <h3 className="italic font-medium font-ibm-plex-serif text-2xl">{number}</h3>
                 <h3 className="text-2xl md:text-3xl font-medium font-ibm-plex-serif">{title}</h3>
 
-                <p className="font-geist font-normal">{description}</p>
+                <div className="font-geist font-normal">{description}</div>
             </div>
 
             {/* Image */}
@@ -54,16 +54,17 @@ export function HowItWorks() {
                     title="Define your Problem or Niche space"
                     description={
                         <>
-                            <div className="flex">
+                            <div className="flex flex-col items-center gap-1">
                                 <p>
-
-                                    Tell us the problem you solve or what you want to be known for on</p> <Image
+                                    Tell us the problem you solve or what you want to be known for
+                                    </p>
+                                     {/* <Image
                                     alt="X icon"
-                                    src="/xicon.svg"
+                                    src="/images/logo-white.png"
                                     width={100}
                                     height={100}
-                                    className="w-[30px] h-[30px] md:w-[100px] md:h-[100px]"
-                                />
+                                    className="w-[20px] h-[20px] md:w-[25px] md:h-[25px]"
+                                /> */}
                             </div>
                         </>
                     }
