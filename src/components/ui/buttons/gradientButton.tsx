@@ -3,14 +3,20 @@ import clsx from "clsx";
 type GradientButtonProps = {
     buttonLabel?: string;
     className?: string;
+    onClick?: () => void;
+    type?: "button" | "submit" | "reset";
 };
 
 export function GradientButton({
     buttonLabel = "GradientButton",
     className,
+    onClick,
+    type = "button",
 }: GradientButtonProps) {
     return (
         <button
+            type={type}
+            onClick={onClick}
             className={clsx(
                 `
         bg-[linear-gradient(109.69deg,#E36A3A_11.2%,#B44BD6_49.66%,#5C3FED_88.12%)]

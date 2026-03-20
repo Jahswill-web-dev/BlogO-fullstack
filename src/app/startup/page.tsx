@@ -1,296 +1,337 @@
 "use client";
 
 import React, { useState } from "react";
-import { RocketIcon, SparklesIcon, XIcon, ArrowRightIcon } from "lucide-react";
-import { SocialMediaModal } from "@/components/modules/SocialMediaModal";
 import { useRouter } from "next/navigation";
+import { GradientButton } from "@/components/ui/buttons/gradientButton";
+import { SocialMediaModal } from "@/components/modules/SocialMediaModal";
 
-export default function StartupInfoPage() {
+const PROBLEM_CHIPS = [
+  "Finding early users for SaaS",
+  "SEO for founders",
+  "Marketing dev tools",
+  "Building in public",
+  "Shipping as a solo founder",
+];
+
+const AUDIENCE_CHIPS = [
+  "Indie Hackers",
+  "Startup Founders",
+  "Developers",
+  "Building in public",
+  "Marketers",
+];
+
+type FormData = {
+  problem: string;
+  audience: string;
+  hasProduct: "yes" | "no" | null;
+  productDoes: string;
+  productFor: string;
+  productHelps: string;
+};
+
+export default function StartupOnboarding() {
   const router = useRouter();
-
-  const [formData, setFormData] = useState({
-    name: "",
-    industry: "",
-    productDescription: "",
-    targetAudience: [] as string[],
-    mainProblems: "",
-    keyBenefits: "",
+  const [step, setStep] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState<FormData>({
+    problem: "",
+    audience: "",
+    hasProduct: null,
+    productDoes: "",
+    productFor: "",
+    productHelps: "",
   });
 
-  const [audienceInput, setAudienceInput] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const skipToPreview = () => setStep(4);
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleAudienceInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value.endsWith(" ") && value.trim()) {
-      const newTag = value.trim();
-      if (newTag && !formData.targetAudience.includes(newTag)) {
-        setFormData((prev) => ({
-          ...prev,
-          targetAudience: [...prev.targetAudience, newTag],
-        }));
-      }
-      setAudienceInput("");
+  const handleProductChoice = (choice: "yes" | "no") => {
+    setFormData((prev) => ({ ...prev, hasProduct: choice }));
+    if (choice === "no") {
+      setStep(4);
     } else {
-      setAudienceInput(value);
+      setStep(3);
     }
-  };
-
-  const handleAudienceKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>
-  ) => {
-    if (e.key === "Enter" && audienceInput.trim()) {
-      e.preventDefault();
-      const newTag = audienceInput.trim();
-      if (newTag && !formData.targetAudience.includes(newTag)) {
-        setFormData((prev) => ({
-          ...prev,
-          targetAudience: [...prev.targetAudience, newTag],
-        }));
-      }
-      setAudienceInput("");
-    } else if (
-      e.key === "Backspace" &&
-      !audienceInput &&
-      formData.targetAudience.length > 0
-    ) {
-      setFormData((prev) => ({
-        ...prev,
-        targetAudience: prev.targetAudience.slice(0, -1),
-      }));
-    }
-  };
-
-  const removeAudienceTag = (tagToRemove: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      targetAudience: prev.targetAudience.filter(
-        (tag) => tag !== tagToRemove
-      ),
-    }));
-  };
-
-  const handleGenerate = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsModalOpen(true);
   };
 
   const handlePlatformSelect = (platform: string) => {
-    console.log("Selected platform:", platform);
-    console.log("Form data:", formData);
+    console.log("Platform:", platform, "Form data:", formData);
     setIsModalOpen(false);
-
     router.push("/posts");
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <RocketIcon className="w-5 h-5 text-gray-900" />
-            <h1 className="text-2xl font-semibold text-gray-900">
-              Tell us about your startup
-            </h1>
-          </div>
-          <p className="text-sm text-gray-500">
-            Share your vision and we'll help create your content
-          </p>
-        </div>
+    <div
+      suppressHydrationWarning
+      className="min-h-screen bg-gradient-to-b from-[#10060A] via-[#10060A] to-[#5C3FED] flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-16 relative"
+    >
+      {/* Skip button */}
+      {step < 3 && (
+        <button
+          onClick={skipToPreview}
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-[#1F2933] text-white rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm hover:bg-[#263241] transition"
+        >
+          Skip
+        </button>
+      )}
 
-        {/* Form */}
-        <form onSubmit={handleGenerate} className="space-y-6">
-          {/* NAME */}
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700 mb-1.5"
-            >
-              Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border-b border-gray-200 
-              focus:border-gray-900 transition-colors outline-none text-sm"
-              placeholder="Enter your startup name"
-            />
-          </div>
-
-          {/* INDUSTRY */}
-          <div>
-            <label
-              htmlFor="industry"
-              className="block text-sm font-medium text-gray-700 mb-1.5"
-            >
-              Industry
-            </label>
-            <select
-              id="industry"
-              name="industry"
-              value={formData.industry}
-              onChange={handleChange}
-              required
-              className="w-full px-3 py-2 border-b border-gray-200 
-              focus:border-gray-900 transition-colors outline-none text-sm bg-white"
-            >
-              <option value="">Select an industry</option>
-              <option value="technology">Technology</option>
-              <option value="healthcare">Healthcare</option>
-              <option value="finance">Finance</option>
-              <option value="education">Education</option>
-              <option value="ecommerce">E-commerce</option>
-              <option value="saas">SaaS</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          {/* PRODUCT DESCRIPTION */}
-          <div>
-            <label
-              htmlFor="productDescription"
-              className="block text-sm font-medium text-gray-700 mb-1.5"
-            >
-              Product Description
-            </label>
-            <textarea
-              id="productDescription"
-              name="productDescription"
-              value={formData.productDescription}
-              onChange={handleChange}
-              required
-              rows={3}
-              className="w-full px-3 py-2 border-b border-gray-200 
-              focus:border-gray-900 transition-colors outline-none resize-none text-sm"
-              placeholder="Describe what your product does"
-            />
-          </div>
-
-          {/* TARGET AUDIENCE */}
-          <div>
-            <label
-              htmlFor="targetAudience"
-              className="block text-sm font-medium text-gray-700 mb-1.5"
-            >
-              Target Audience
-            </label>
-
-            <div className="w-full px-3 py-2 border-b border-gray-200 focus-within:border-gray-900 
-            transition-colors min-h-10 flex flex-wrap items-center gap-2">
-              {formData.targetAudience.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
+      {/* Step 0 — What problem */}
+      {step === 0 && (
+        <>
+          <PageHeader />
+          <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
+            <h2 className="text-white font-bold text-lg sm:text-xl mb-1">
+              What problem do you want to be known for?
+            </h2>
+            <p className="text-gray-400 text-xs sm:text-sm mb-4">
+              This is the problem your ideal audience cares about — and the one your content will focus on.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-1">
+              {PROBLEM_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, problem: chip }))}
+                  className="bg-[#1F2933] text-white text-xs sm:text-sm rounded-full px-3 sm:px-4 py-1.5 cursor-pointer hover:bg-[#263241] transition"
                 >
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => removeAudienceTag(tag)}
-                    className="hover:bg-gray-200 rounded p-0.5 transition-colors"
-                  >
-                    <XIcon className="w-3 h-3" />
-                  </button>
-                </span>
+                  {chip}
+                </button>
               ))}
-
-              <input
-                type="text"
-                id="targetAudience"
-                value={audienceInput}
-                onChange={handleAudienceInput}
-                onKeyDown={handleAudienceKeyDown}
-                className="flex-1 min-w-[120px] outline-none text-sm"
-                placeholder={
-                  formData.targetAudience.length === 0
-                    ? "Type and press space to add"
-                    : ""
-                }
+            </div>
+            <textarea
+              value={formData.problem}
+              onChange={(e) => setFormData((prev) => ({ ...prev, problem: e.target.value }))}
+              placeholder="E.g. SEO for startup founders"
+              className="bg-black text-white rounded-xl p-3 sm:p-4 resize-none w-full min-h-[160px] sm:min-h-[200px] outline-none placeholder:text-gray-600 text-sm mt-3"
+            />
+            <div className="flex justify-end mt-5 sm:mt-6">
+              <GradientButton
+                buttonLabel="Next"
+                className="px-5 sm:px-6 py-2 text-sm"
+                onClick={() => setStep(1)}
               />
             </div>
+          </div>
+        </>
+      )}
 
-            <p className="mt-1 text-xs text-gray-400">
-              Press space or enter to add each audience type
+      {/* Step 1 — Who struggles */}
+      {step === 1 && (
+        <>
+          <PageHeader />
+          <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
+            <h2 className="text-white font-bold text-lg sm:text-xl mb-1">
+              Who struggles with this problem?
+            </h2>
+            <p className="text-gray-400 text-xs sm:text-sm mb-4">
+              We&apos;ll use this to tailor examples and language in your posts.
             </p>
-          </div>
-
-          {/* MAIN PROBLEMS */}
-          <div>
-            <label
-              htmlFor="mainProblems"
-              className="block text-sm font-medium text-gray-700 mb-1.5"
-            >
-              Main Problems Solved
-            </label>
+            <div className="flex flex-wrap gap-2 mb-1">
+              {AUDIENCE_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, audience: chip }))}
+                  className="bg-[#1F2933] text-white text-xs sm:text-sm rounded-full px-3 sm:px-4 py-1.5 cursor-pointer hover:bg-[#263241] transition"
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
             <textarea
-              id="mainProblems"
-              name="mainProblems"
-              value={formData.mainProblems}
-              onChange={handleChange}
-              required
-              rows={3}
-              className="w-full px-3 py-2 border-b border-gray-200 
-              focus:border-gray-900 transition-colors outline-none resize-none text-sm"
-              placeholder="What problems does your product solve?"
+              value={formData.audience}
+              onChange={(e) => setFormData((prev) => ({ ...prev, audience: e.target.value }))}
+              placeholder="E.g. SEO for startup founders"
+              className="bg-black text-white rounded-xl p-3 sm:p-4 resize-none w-full min-h-[160px] sm:min-h-[200px] outline-none placeholder:text-gray-600 text-sm mt-3"
             />
+            <div className="flex justify-between items-center mt-5 sm:mt-6">
+              <button
+                onClick={() => setStep(0)}
+                className="text-white/60 hover:text-white text-sm transition"
+              >
+                Back
+              </button>
+              <GradientButton
+                buttonLabel="Next"
+                className="px-5 sm:px-6 py-2 text-sm"
+                onClick={() => setStep(2)}
+              />
+            </div>
           </div>
+        </>
+      )}
 
-          {/* KEY BENEFITS */}
-          <div>
-            <label
-              htmlFor="keyBenefits"
-              className="block text-sm font-medium text-gray-700 mb-1.5"
-            >
-              Key Benefits & Features
-            </label>
-            <textarea
-              id="keyBenefits"
-              name="keyBenefits"
-              value={formData.keyBenefits}
-              onChange={handleChange}
-              required
-              rows={3}
-              className="w-full px-3 py-2 border-b border-gray-200 
-              focus:border-gray-900 transition-colors outline-none resize-none text-sm"
-              placeholder="What are the key benefits or features?"
-            />
+      {/* Step 2 — Product check */}
+      {step === 2 && (
+        <>
+          <PageHeader />
+          <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
+            <h2 className="text-white font-bold text-lg sm:text-xl mb-1">
+              Do you have a product related to this problem?{" "}
+              <span className="text-gray-400 font-normal text-sm sm:text-base">(Optional)</span>
+            </h2>
+            <p className="text-gray-400 text-xs sm:text-sm mb-6">
+              This helps us add relevant context and soft product mentions. You can skip this.
+            </p>
+            <div className="space-y-1">
+              {(["yes", "no"] as const).map((choice) => (
+                <button
+                  key={choice}
+                  type="button"
+                  onClick={() => handleProductChoice(choice)}
+                  className="flex items-center gap-3 py-3 w-full cursor-pointer group"
+                >
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition ${
+                      formData.hasProduct === choice
+                        ? "border-[#5C3FED]"
+                        : "border-white/30 group-hover:border-white/50"
+                    }`}
+                  >
+                    {formData.hasProduct === choice && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-[#5C3FED]" />
+                    )}
+                  </div>
+                  <span className="text-white text-sm">
+                    {choice === "yes" ? "Yes, I have a product" : "Not yet"}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center mt-6">
+              <button
+                onClick={() => setStep(1)}
+                className="text-white/60 hover:text-white text-sm transition"
+              >
+                Back
+              </button>
+            </div>
           </div>
+        </>
+      )}
 
-          {/* BUTTON */}
-          <div className="pt-6">
-            <button
-              type="submit"
-              className="w-full bg-gray-900 text-white py-2.5 px-4 rounded 
-              text-sm font-medium hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-            >
-              <span>Generate Content</span>
-              <ArrowRightIcon className="w-4 h-4" />
-            </button>
+      {/* Step 3 — Product details */}
+      {step === 3 && (
+        <>
+          <PageHeader />
+          <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
+            <h2 className="text-white font-bold text-lg sm:text-xl mb-5 sm:mb-6">
+              Product details
+            </h2>
+            <div className="space-y-4 sm:space-y-5">
+              <div>
+                <label className="text-gray-300 text-xs sm:text-sm mb-2 block">
+                  What does your product do?
+                </label>
+                <input
+                  type="text"
+                  value={formData.productDoes}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, productDoes: e.target.value }))
+                  }
+                  placeholder="A short description of what you're building"
+                  className="w-full bg-[#1F2933] text-white rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 outline-none placeholder:text-gray-500 text-sm border border-[#1F2933] focus:border-[#5C3FED] transition"
+                />
+              </div>
+              <div>
+                <label className="text-gray-300 text-xs sm:text-sm mb-2 block">
+                  Who is it for?
+                </label>
+                <input
+                  type="text"
+                  value={formData.productFor}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, productFor: e.target.value }))
+                  }
+                  placeholder="E.g. early-stage SaaS founders"
+                  className="w-full bg-[#1F2933] text-white rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 outline-none placeholder:text-gray-500 text-sm border border-[#1F2933] focus:border-[#5C3FED] transition"
+                />
+              </div>
+              <div>
+                <label className="text-gray-300 text-xs sm:text-sm mb-2 block">
+                  How does it help with this problem?
+                </label>
+                <input
+                  type="text"
+                  value={formData.productHelps}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, productHelps: e.target.value }))
+                  }
+                  placeholder="E.g. helps founders find SEO opportunities faster"
+                  className="w-full bg-[#1F2933] text-white rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 outline-none placeholder:text-gray-500 text-sm border border-[#1F2933] focus:border-[#5C3FED] transition"
+                />
+              </div>
+            </div>
+            <div className="flex justify-between items-center mt-6 sm:mt-8">
+              <button
+                onClick={() => setStep(2)}
+                className="text-white/60 hover:text-white text-sm transition"
+              >
+                Back
+              </button>
+              <GradientButton
+                buttonLabel="Done"
+                className="px-5 sm:px-6 py-2 text-sm"
+                onClick={() => setStep(4)}
+              />
+            </div>
           </div>
-        </form>
-      </div>
+        </>
+      )}
+
+      {/* Step 4 — Preview */}
+      {step === 4 && (
+        <div className="flex flex-col items-center w-full max-w-lg text-center px-2">
+          <h1 className="text-white text-2xl sm:text-3xl md:text-4xl font-semibold mb-3 leading-tight">
+            Here&apos;s what we&apos;ll generate for you
+          </h1>
+          <p className="text-gray-400 text-xs sm:text-sm mb-8 sm:mb-10">
+            You can edit everything later
+          </p>
+          <ul className="space-y-3 mb-8 sm:mb-10 text-left w-full max-w-xs sm:max-w-sm">
+            {[
+              "Content pillars around your problem space",
+              "Subtopics your audience cares about",
+              "X posts designed to attract the right people",
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-3 text-gray-400 text-sm sm:text-base">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-400 mt-2 shrink-0" />
+                {item}
+              </li>
+            ))}
+          </ul>
+          <GradientButton
+            buttonLabel="Generate My Content"
+            className="px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base w-full sm:w-auto"
+            onClick={() => setIsModalOpen(true)}
+          />
+          <button
+            onClick={() => router.push("/posts")}
+            className="text-gray-400 text-xs sm:text-sm mt-4 hover:text-white transition"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      )}
 
       <SocialMediaModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSelect={handlePlatformSelect}
       />
+    </div>
+  );
+}
+
+function PageHeader() {
+  return (
+    <div className="mb-6 sm:mb-8 text-center px-2">
+      <h1 className="text-white text-2xl sm:text-3xl font-semibold mb-2 leading-tight">
+        Tell Us About What You&apos;re Building
+      </h1>
+      <p className="text-gray-400 text-xs sm:text-sm">
+        Help us tailor your experience for the best results
+      </p>
     </div>
   );
 }
