@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:localhost)",
+      "Bash(\"C:\\\\Users\\\\ISAAC ONUEGBU\\\\Documents\\\\Jahswill_space\\\\blogofrontend\\\\.env.local\")",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

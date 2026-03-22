@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { geist, ibmPlexSerif, kumbhSans } from "./fonts";
+import { Providers } from "@/components/Providers";
 
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ export default function RootLayout({
       <body
         className={`${geist.variable} ${ibmPlexSerif.variable} ${kumbhSans.variable} antialiased`}
       >
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

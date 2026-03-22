@@ -1,8 +1,12 @@
+"use client";
+
 import React from "react";
 import { FcGoogle } from "react-icons/fc";
 import { FaXTwitter } from "react-icons/fa6";
 import Image from "next/image";
 import Link from "next/link";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function SignupPage() {
     return (
@@ -43,8 +47,6 @@ export default function SignupPage() {
 
                 </div>
 
-
-
                 {/* RIGHT SIDE */}
                 <div className="flex flex-col justify-in-between">
 
@@ -56,39 +58,32 @@ export default function SignupPage() {
                         Start collaborating instantly.
                     </p>
 
-
                     {/* Google Button */}
-                    <button className="group relative mb-4 rounded-md p-[1px] bg-gradient-to-r from-orange-400 via-pink-500 to-purple-500 cursor-pointer">
-
-                        <div className="flex items-center justify-center gap-3 bg-[#0B0F19] rounded-md px-6 py-3 text-white hover:bg-transparent transition duration-300">
-
+                    <button
+                        onClick={() => { window.location.href = `${API}/auth/google`; }}
+                        className="group relative mb-4 rounded-[4px] p-0.5 bg-linear-to-r from-[#E36A3A] via-[#B44BD6] to-[#5C3FED] shadow-[5px_5px_7.4px_0px_#1E103538] cursor-pointer"
+                    >
+                        <div className="flex items-center justify-center gap-3 bg-[#0F1419] rounded-[2px] px-6 py-3 text-white font-medium hover:bg-[#151B22] hover:cursor-pointer transition">
                             <FcGoogle size={20} />
-
                             <span>Sign Up With Google</span>
-
                         </div>
-
                     </button>
-
 
                     {/* X Button */}
-                    <button className="group relative mb-6 rounded-md p-[1px] bg-gradient-to-r from-orange-500 via-pink-500 to-purple-500 cursor-pointer">
-
-                        <div className="flex items-center justify-center gap-3 bg-[#0B0F19] rounded-md px-6 py-3 text-white hover:bg-transparent transition duration-300">
-
+                    <button
+                        onClick={() => { window.location.href = `${API}/auth/x`; }}
+                        className="group relative mb-6 rounded-[4px] p-0.5 bg-linear-to-r from-[#E36A3A] via-[#B44BD6] to-[#5C3FED] shadow-[5px_5px_7.4px_0px_#1E103538] cursor-pointer"
+                    >
+                        <div className="flex items-center justify-center gap-3 bg-[#0F1419] rounded-[2px] px-6 py-3 text-white font-medium hover:bg-[#151B22] hover:cursor-pointer transition">
                             <FaXTwitter size={18} />
-
                             <span>Sign Up With X</span>
-
                         </div>
-
                     </button>
-
 
                     {/* Login link */}
                     <p className="text-gray-400 text-center">
                         Have an account?{" "}
-                        <Link className="text-white hover:underline cursor-pointer"  href="/signin">
+                        <Link className="text-white hover:underline cursor-pointer" href="/signin">
                             Log In
                         </Link>
                     </p>

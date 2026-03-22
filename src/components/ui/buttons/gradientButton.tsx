@@ -5,6 +5,7 @@ type GradientButtonProps = {
     className?: string;
     onClick?: () => void;
     type?: "button" | "submit" | "reset";
+    disabled?: boolean;
 };
 
 export function GradientButton({
@@ -12,11 +13,13 @@ export function GradientButton({
     className,
     onClick,
     type = "button",
+    disabled = false,
 }: GradientButtonProps) {
     return (
         <button
             type={type}
             onClick={onClick}
+            disabled={disabled}
             className={clsx(
                 `
         bg-[linear-gradient(109.69deg,#E36A3A_11.2%,#B44BD6_49.66%,#5C3FED_88.12%)]
@@ -27,6 +30,7 @@ export function GradientButton({
         hover:opacity-90
         active:scale-[0.98]
         hover:shadow-[7px_7px_10px_0px_#1E103560]
+        disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none
         `,
                 className
             )}
