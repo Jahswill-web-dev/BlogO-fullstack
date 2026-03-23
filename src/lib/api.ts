@@ -78,12 +78,5 @@ export const api = {
       body: JSON.stringify({ count }),
     }),
 
-  /** AI-powered focus area suggestions for Step 2 of onboarding */
-  suggestFocusAreas: (niche: string, audience: string) =>
-    apiFetch<{ focusAreas: string[] }>("/suggest-focus-areas", {
-      method: "POST",
-      body: JSON.stringify({ niche, audience }),
-    }),
-
   logout: () => apiFetch<void>("/auth/logout"),
 };

@@ -1,23 +1,100 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { GradientButton } from "@/components/ui/buttons/gradientButton";
-import { SocialMediaModal } from "@/components/modules/SocialMediaModal";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 
 /* ------------------------------------------------------------------ */
-/*  Static chip data                                                    */
+/*  Fixed niche data                                                    */
 /* ------------------------------------------------------------------ */
-const NICHE_CHIPS = [
-  "Finding early users for SaaS",
-  "SEO for founders",
-  "Marketing dev tools",
-  "Building in public",
-  "Shipping as a solo founder",
+const FIXED_NICHES = [
+  {
+    name: "Content Marketing",
+    focusAreas: [
+      "Blog Writing",
+      "Educational Content",
+      "Storytelling & Personal Branding",
+      "Content Repurposing",
+      "Content Strategy & Planning",
+      "Long-form Authority Content",
+      "Content Distribution",
+    ],
+  },
+  {
+    name: "SEO",
+    focusAreas: [
+      "Keyword Research",
+      "Search Intent Optimization",
+      "On-Page SEO",
+      "Content Optimization & Refreshing",
+      "Programmatic SEO",
+      "Link Building Strategies",
+      "Technical SEO",
+    ],
+  },
+  {
+    name: "X / Twitter Growth",
+    focusAreas: [
+      "Tweet Writing (Hooks, formats)",
+      "Thread Creation",
+      "Audience Building Strategy",
+      "Engagement & Virality Tactics",
+      "Personal Brand Positioning",
+      "Content Systems & Consistency",
+      "Monetization via Twitter",
+    ],
+  },
+  {
+    name: "Reddit Marketing",
+    focusAreas: [
+      "Finding Target Subreddits",
+      "Post Writing (Non-spam, native style)",
+      "Comment Marketing Strategy",
+      "Karma Building & Account Warmup",
+      "Promotion Without Getting Banned",
+      "Competitor & Audience Research",
+      "Viral Post Frameworks",
+    ],
+  },
+  {
+    name: "Email Marketing",
+    focusAreas: [
+      "Newsletter Writing",
+      "Email Sequences (Welcome, nurture)",
+      "Sales Emails",
+      "Subject Lines & Open Rate Optimization",
+      "Email Personalization & Segmentation",
+      "Retention & Re-engagement Emails",
+      "Deliverability & Performance",
+    ],
+  },
+  {
+    name: "Lead Generation",
+    focusAreas: [
+      "Landing Pages",
+      "Lead Magnets",
+      "Funnel Design",
+      "Conversion Copywriting",
+      "Offer Creation & Positioning",
+      "CRO (Conversion Rate Optimization)",
+      "Form & CTA Optimization",
+    ],
+  },
+  {
+    name: "Sales / Outreach",
+    focusAreas: [
+      "Cold Email Outreach",
+      "LinkedIn Outreach",
+      "Follow-Up Sequences",
+      "Offer Positioning",
+      "Objection Handling",
+      "Sales Messaging & Scripts",
+      "Closing & Conversion Tactics",
+    ],
+  },
 ];
 
 const AUDIENCE_OPTIONS = [
@@ -27,60 +104,6 @@ const AUDIENCE_OPTIONS = [
   "Marketers",
   "Other",
 ];
-
-/* ------------------------------------------------------------------ */
-/*  Dynamic focus-area mapping                                          */
-/*  Keys are lowercase substrings to match against the niche input.    */
-/* ------------------------------------------------------------------ */
-const NICHE_FOCUS_MAP: { keywords: string[]; areas: string[] }[] = [
-  {
-    keywords: ["seo", "search engine"],
-    areas: ["Getting traffic", "Keyword research", "Technical SEO", "Content strategy", "Link building", "Programmatic SEO"],
-  },
-  {
-    keywords: ["early user", "user acquisition", "saas growth"],
-    areas: ["Community building", "Cold outreach", "Product Hunt launch", "Twitter/X growth", "Referral programs", "Waitlist building"],
-  },
-  {
-    keywords: ["marketing", "dev tool", "developer tool"],
-    areas: ["Developer advocacy", "Technical content", "Case studies", "Community building", "API guides", "Documentation"],
-  },
-  {
-    keywords: ["building in public", "build in public"],
-    areas: ["Journey sharing", "Metrics sharing", "Behind the scenes", "Lessons learned", "Product updates", "Audience building"],
-  },
-  {
-    keywords: ["solo founder", "indie", "bootstrap"],
-    areas: ["Productivity", "Tech stack", "Launch strategies", "Revenue growth", "Time management", "Automation"],
-  },
-  {
-    keywords: ["developer", "coding", "programming", "engineer"],
-    areas: ["Open source", "Technical writing", "API design", "Code tutorials", "Architecture", "Side projects"],
-  },
-  {
-    keywords: ["content", "creator", "writing"],
-    areas: ["Audience growth", "Newsletter", "Repurposing content", "Content systems", "Monetisation", "Distribution"],
-  },
-];
-
-const DEFAULT_FOCUS_AREAS = [
-  "Thought leadership",
-  "Case studies",
-  "How-to guides",
-  "Tools & resources",
-  "Beginner tutorials",
-  "Community building",
-];
-
-function getFocusAreas(niche: string): string[] {
-  const lower = niche.toLowerCase();
-  for (const entry of NICHE_FOCUS_MAP) {
-    if (entry.keywords.some((kw) => lower.includes(kw))) {
-      return entry.areas;
-    }
-  }
-  return DEFAULT_FOCUS_AREAS;
-}
 
 /* ------------------------------------------------------------------ */
 /*  Form state type                                                     */
@@ -102,167 +125,12 @@ type FormData = {
 };
 
 /* ------------------------------------------------------------------ */
-/*  AI-powered focus area step                                          */
-/* ------------------------------------------------------------------ */
-type FocusAreaStepProps = {
-  niche: string;
-  audience: string;
-  value: string;
-  onChange: (v: string) => void;
-  onBack: () => void;
-  onNext: () => void;
-};
-
-function FocusAreaStep({ niche, audience, value, onChange, onBack, onNext }: FocusAreaStepProps) {
-  const [otherSelected, setOtherSelected] = useState(false);
-  const [otherText, setOtherText] = useState("");
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["focus-areas", niche, audience],
-    queryFn: () => api.suggestFocusAreas(niche, audience),
-    enabled: !!(niche && audience),
-    staleTime: 1000 * 60 * 10, // cache for 10 min
-  });
-
-  const chips: string[] = data?.focusAreas ?? [];
-
-  const handleChipClick = (chip: string) => {
-    setOtherSelected(false);
-    onChange(chip);
-  };
-
-  const handleOtherClick = () => {
-    setOtherSelected(true);
-    onChange(otherText);
-  };
-
-  const handleOtherTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setOtherText(e.target.value);
-    onChange(e.target.value);
-  };
-
-  const canContinue = otherSelected ? otherText.trim().length > 0 : value.length > 0;
-
-  return (
-    <>
-      <PageHeader />
-      <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
-        <h2 className="text-white font-bold text-lg sm:text-xl mb-1">
-          What area of this niche do you want to focus on most?
-        </h2>
-        <p className="text-gray-400 text-xs sm:text-sm mb-5">
-          We&apos;ll build your content strategy around this.
-        </p>
-
-        {/* Loading skeletons */}
-        {isLoading && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-8 rounded-full bg-[#1F2933] animate-pulse"
-                style={{ width: `${80 + (i % 3) * 30}px` }}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Error fallback */}
-        {isError && !isLoading && (
-          <p className="text-gray-400 text-sm mb-4">
-            Couldn&apos;t generate suggestions. Type your own below.
-          </p>
-        )}
-
-        {/* AI-generated chips */}
-        {!isLoading && chips.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {chips.map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                onClick={() => handleChipClick(chip)}
-                className={`text-xs sm:text-sm rounded-full px-3 sm:px-4 py-1.5 cursor-pointer transition border ${
-                  value === chip && !otherSelected
-                    ? "bg-[#5C3FED]/20 border-[#5C3FED] text-white"
-                    : "bg-[#1F2933] border-transparent text-white hover:bg-[#263241]"
-                }`}
-              >
-                {chip}
-              </button>
-            ))}
-
-            {/* Other chip — always visible */}
-            <button
-              type="button"
-              onClick={handleOtherClick}
-              className={`text-xs sm:text-sm rounded-full px-3 sm:px-4 py-1.5 cursor-pointer transition border ${
-                otherSelected
-                  ? "bg-[#5C3FED]/20 border-[#5C3FED] text-white"
-                  : "bg-[#1F2933] border-transparent text-white hover:bg-[#263241]"
-              }`}
-            >
-              Other (type your own)
-            </button>
-          </div>
-        )}
-
-        {/* Show "Other" chip alone when no AI chips loaded (error/no data) and not loading */}
-        {!isLoading && chips.length === 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              type="button"
-              onClick={handleOtherClick}
-              className={`text-xs sm:text-sm rounded-full px-3 sm:px-4 py-1.5 cursor-pointer transition border ${
-                otherSelected
-                  ? "bg-[#5C3FED]/20 border-[#5C3FED] text-white"
-                  : "bg-[#1F2933] border-transparent text-white hover:bg-[#263241]"
-              }`}
-            >
-              Other (type your own)
-            </button>
-          </div>
-        )}
-
-        {/* Free-text input when "Other" is selected */}
-        {otherSelected && (
-          <input
-            type="text"
-            value={otherText}
-            onChange={handleOtherTextChange}
-            placeholder="Describe your focus area…"
-            autoFocus
-            className="w-full bg-black text-white rounded-xl px-4 py-3 outline-none placeholder:text-gray-600 text-sm border border-[#1F2933] focus:border-[#5C3FED] transition mb-2"
-          />
-        )}
-
-        <div className="flex justify-between items-center mt-5 sm:mt-6">
-          <button
-            onClick={onBack}
-            className="text-white/60 hover:text-white text-sm transition"
-          >
-            Back
-          </button>
-          <GradientButton
-            buttonLabel="Continue"
-            className="px-5 sm:px-6 py-2 text-sm"
-            onClick={onNext}
-            disabled={!canContinue}
-          />
-        </div>
-      </div>
-    </>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /*  Page component                                                      */
 /* ------------------------------------------------------------------ */
 export default function StartupOnboarding() {
   const router = useRouter();
   const { loggedIn, loading: authLoading } = useAuth();
   const [step, setStep] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -284,11 +152,11 @@ export default function StartupOnboarding() {
 
   if (authLoading) return <LoadingSpinner />;
 
-  const skipToPreview = () => setStep(5);
+  const skipToPreview = () => setStep(4);
 
   const handleProductChoice = (choice: "yes" | "no") => {
     setFormData((prev) => ({ ...prev, hasProduct: choice }));
-    setStep(choice === "no" ? 5 : 4);
+    setStep(choice === "no" ? 4 : 3);
   };
 
   // Resolve final audience value (handles "Other" free text)
@@ -297,12 +165,10 @@ export default function StartupOnboarding() {
       ? audienceOther.trim() || "Other"
       : formData.audience;
 
-  const handlePlatformSelect = async (_platform: string) => {
-    setIsModalOpen(false);
+  const handleGenerate = async () => {
     setGenerating(true);
     setGenError(null);
     try {
-      // POST /profile — maps onboarding fields to backend schema
       await api.saveProfile({
         userNiche:          formData.problem,
         targetAudience:     resolvedAudience,
@@ -311,13 +177,10 @@ export default function StartupOnboarding() {
         productAudience:    formData.productFor    || undefined,
         productSolution:    formData.productHelps  || undefined,
       });
-
-      // Full AI generation pipeline (each step reads from DB — no body needed)
       await api.generateSaasProfile();
       await api.generateCategories();
       await api.generateSubtopics();
       await api.generatePosts(10);
-
       router.push("/dashboard");
     } catch {
       setGenError("Content generation failed. Please try again.");
@@ -325,13 +188,15 @@ export default function StartupOnboarding() {
     }
   };
 
+  const selectedNiche = FIXED_NICHES.find((n) => n.name === formData.problem);
+
   return (
     <div
       suppressHydrationWarning
       className="min-h-screen bg-gradient-to-b from-[#10060A] via-[#10060A] to-[#5C3FED] flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-16 relative"
     >
       {/* Skip button */}
-      {step < 4 && (
+      {step < 3 && (
         <button
           onClick={skipToPreview}
           className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-[#1F2933] text-white rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm hover:bg-[#263241] transition"
@@ -340,7 +205,7 @@ export default function StartupOnboarding() {
         </button>
       )}
 
-      {/* ── Step 0 — Define your niche ── */}
+      {/* ── Step 0 — Pick niche + focus area ── */}
       {step === 0 && (
         <>
           <PageHeader />
@@ -348,33 +213,66 @@ export default function StartupOnboarding() {
             <h2 className="text-white font-bold text-lg sm:text-xl mb-4">
               What Niche Content do you want to be known for?
             </h2>
-            <div className="flex flex-wrap gap-2 mb-1">
-              {NICHE_CHIPS.map((chip) => (
+
+            {/* Niche chips */}
+            <div className="flex flex-wrap gap-2 mb-6">
+              {FIXED_NICHES.map((niche) => (
                 <button
-                  key={chip}
+                  key={niche.name}
                   type="button"
-                  onClick={() => setFormData((prev) => ({ ...prev, problem: chip }))}
-                  className={`text-xs sm:text-sm rounded-full px-3 sm:px-4 py-1.5 cursor-pointer transition border ${
-                    formData.problem === chip
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      problem: niche.name,
+                      nicheArea: "",
+                    }))
+                  }
+                  className={`text-sm rounded-full px-4 py-2 cursor-pointer transition border ${
+                    formData.problem === niche.name
                       ? "bg-[#5C3FED]/20 border-[#5C3FED] text-white"
                       : "bg-[#1F2933] border-transparent text-white hover:bg-[#263241]"
                   }`}
                 >
-                  {chip}
+                  {niche.name}
                 </button>
               ))}
             </div>
-            <textarea
-              value={formData.problem}
-              onChange={(e) => setFormData((prev) => ({ ...prev, problem: e.target.value }))}
-              placeholder="E.g. SEO for startup founders"
-              className="bg-black text-white rounded-xl p-3 sm:p-4 resize-none w-full min-h-[160px] sm:min-h-[200px] outline-none placeholder:text-gray-600 text-sm mt-3"
-            />
-            <div className="flex justify-end mt-5 sm:mt-6">
+
+            {/* Focus area reveal */}
+            {formData.problem && (
+              <div className="border-t border-[#1F2933] pt-5 mb-5">
+                <p className="text-gray-400 text-xs sm:text-sm mb-3">
+                  Which area of{" "}
+                  <span className="text-white">{formData.problem}</span> do you
+                  want to focus on?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedNiche?.focusAreas.map((area) => (
+                    <button
+                      key={area}
+                      type="button"
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, nicheArea: area }))
+                      }
+                      className={`text-xs sm:text-sm rounded-full px-3 py-1.5 cursor-pointer transition border ${
+                        formData.nicheArea === area
+                          ? "bg-[#5C3FED]/20 border-[#5C3FED] text-white"
+                          : "bg-[#1F2933] border-transparent text-white hover:bg-[#263241]"
+                      }`}
+                    >
+                      {area}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-2">
               <GradientButton
                 buttonLabel="Continue"
                 className="px-5 sm:px-6 py-2 text-sm"
                 onClick={() => setStep(1)}
+                disabled={!formData.problem || !formData.nicheArea}
               />
             </div>
           </div>
@@ -393,7 +291,6 @@ export default function StartupOnboarding() {
               We&apos;ll use this to tailor examples and language in your posts.
             </p>
 
-            {/* Audience option chips */}
             <div className="flex flex-wrap gap-2 mb-4">
               {AUDIENCE_OPTIONS.map((option) => (
                 <button
@@ -411,7 +308,6 @@ export default function StartupOnboarding() {
               ))}
             </div>
 
-            {/* Free-text input when "Other" is selected */}
             {formData.audience === "Other" && (
               <input
                 type="text"
@@ -440,20 +336,8 @@ export default function StartupOnboarding() {
         </>
       )}
 
-      {/* ── Step 2 — Niche focus area (AI-powered) ── */}
+      {/* ── Step 2 — Product check ── */}
       {step === 2 && (
-        <FocusAreaStep
-          niche={formData.problem}
-          audience={resolvedAudience}
-          value={formData.nicheArea}
-          onChange={(v) => setFormData((prev) => ({ ...prev, nicheArea: v }))}
-          onBack={() => setStep(1)}
-          onNext={() => setStep(3)}
-        />
-      )}
-
-      {/* ── Step 3 — Product check ── */}
-      {step === 3 && (
         <>
           <PageHeader />
           <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
@@ -491,7 +375,7 @@ export default function StartupOnboarding() {
             </div>
             <div className="flex items-center mt-6">
               <button
-                onClick={() => setStep(2)}
+                onClick={() => setStep(1)}
                 className="text-white/60 hover:text-white text-sm transition"
               >
                 Back
@@ -501,8 +385,8 @@ export default function StartupOnboarding() {
         </>
       )}
 
-      {/* ── Step 4 — Product details ── */}
-      {step === 4 && (
+      {/* ── Step 3 — Product details ── */}
+      {step === 3 && (
         <>
           <PageHeader />
           <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
@@ -549,7 +433,7 @@ export default function StartupOnboarding() {
             </div>
             <div className="flex justify-between items-center mt-6 sm:mt-8">
               <button
-                onClick={() => setStep(3)}
+                onClick={() => setStep(2)}
                 className="text-white/60 hover:text-white text-sm transition"
               >
                 Back
@@ -557,15 +441,15 @@ export default function StartupOnboarding() {
               <GradientButton
                 buttonLabel="Done"
                 className="px-5 sm:px-6 py-2 text-sm"
-                onClick={() => setStep(5)}
+                onClick={() => setStep(4)}
               />
             </div>
           </div>
         </>
       )}
 
-      {/* ── Step 5 — Preview / Generate ── */}
-      {step === 5 && (
+      {/* ── Step 4 — Preview / Generate ── */}
+      {step === 4 && (
         <div className="flex flex-col items-center w-full max-w-lg text-center px-2">
           {generating ? (
             <>
@@ -601,7 +485,7 @@ export default function StartupOnboarding() {
               <GradientButton
                 buttonLabel="Generate My Content"
                 className="px-6 sm:px-8 py-2.5 sm:py-3 text-sm sm:text-base w-full sm:w-auto"
-                onClick={() => setIsModalOpen(true)}
+                onClick={handleGenerate}
               />
               <button
                 onClick={() => router.push("/dashboard")}
@@ -614,11 +498,6 @@ export default function StartupOnboarding() {
         </div>
       )}
 
-      <SocialMediaModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSelect={handlePlatformSelect}
-      />
     </div>
   );
 }
