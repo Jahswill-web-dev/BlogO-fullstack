@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, ChevronDown, Menu } from "lucide-react";
 import { GradientButton } from "@/components/ui/buttons/gradientButton";
 import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { DashboardSidebar } from "@/components/modules/DashboardSidebar";
 import {
@@ -74,6 +75,14 @@ function getWeekDays(month: Date, weekNumber: number): Date[] {
   });
 }
 
+function getWeekNumberForDate(date: Date): number {
+  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+  const firstSunday = new Date(firstDay);
+  firstSunday.setDate(firstDay.getDate() - firstDay.getDay());
+  const diffDays = Math.floor((date.getTime() - firstSunday.getTime()) / 86400000);
+  return Math.floor(diffDays / 7) + 1;
+}
+
 const postCardBg = (status: Post["status"]) => {
   switch (status) {
     case "scheduled": return "bg-[#1a2638]";
@@ -107,11 +116,59 @@ function StatCard({
 /* ------------------------------------------------------------------ */
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
-  const [posts, setPosts] = useState<Post[]>(makeSamplePosts);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [postsLoading, setPostsLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
-  const [activeWeek, setActiveWeek] = useState(1);
+  const [activeWeek, setActiveWeek] = useState(() => getWeekNumberForDate(new Date()));
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [autoSchedule, setAutoSchedule] = useState(false);
+
+  useEffect(() => {
+    const fromOnboarding = new URLSearchParams(window.location.search).get("schedule") === "true";
+
+    api.getPosts().then((raw) => {
+      console.log("[Dashboard] GET /posts raw response:", JSON.stringify(raw));
+      // Unwrap if the backend returns { posts: [...] } or { data: [...] }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const apiPosts = Array.isArray(raw) ? raw : ((raw as any)?.posts ?? (raw as any)?.data ?? []);
+      console.log("[Dashboard] GET /posts response:", apiPosts);
+
+      if (!apiPosts || apiPosts.length === 0) {
+        console.log("[Dashboard] No posts returned, using sample data");
+        setPosts(makeSamplePosts());
+        setPostsLoading(false);
+        return;
+      }
+
+      const today9am = new Date();
+      today9am.setHours(9, 0, 0, 0);
+
+      const fetched: Post[] = apiPosts.map((p) => ({
+        id: p._id,
+        content: p.finalPost,
+        platform: "Twitter",
+        status: (p.status as Post["status"]) ?? "draft",
+        scheduledDate: p.scheduledDate ? new Date(p.scheduledDate) : new Date(today9am),
+      }));
+
+      console.log("[Dashboard] Mapped posts:", fetched);
+      setPosts(fetched);
+      setPostsLoading(false);
+
+      if (fromOnboarding) {
+        const today = new Date();
+        setAutoSchedule(true);
+        setCurrentMonth(today);
+        setActiveWeek(getWeekNumberForDate(today));
+        setSelectedPost(fetched[0]);
+      }
+    }).catch((err) => {
+      console.error("[Dashboard] GET /posts failed:", err);
+      setPosts(makeSamplePosts());
+      setPostsLoading(false);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // All hooks before any conditional return
   const weekDays = useMemo(
@@ -131,7 +188,7 @@ export default function DashboardPage() {
   }, [posts]);
 
   // Early return after all hooks
-  if (authLoading) return <LoadingSpinner />;
+  if (authLoading || postsLoading) return <LoadingSpinner />;
 
   const totalPosts = posts.length;
   const postedThisWeek = posts.filter((p) => {
@@ -325,6 +382,7 @@ export default function DashboardPage() {
           dayPosts={selectedDayPosts}
           onClose={() => setSelectedPost(null)}
           onSave={handleSave}
+          initialFrequency={autoSchedule ? "Every 2 hours" : "Every 5 minutes"}
         />
       )}
     </div>

@@ -45,6 +45,14 @@ export type UserProfilePayload = {
   productSolution?: string;
 };
 
+/** Returned by GET /posts */
+export type ApiPost = {
+  _id: string;
+  finalPost: string;
+  status?: string;
+  scheduledDate?: string;
+};
+
 // ------------------------------------------------------------------ //
 //  Named API helpers                                                   //
 // ------------------------------------------------------------------ //
@@ -59,24 +67,19 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  /** Step 1 — AI creator profile (reads saved /profile from DB, no body needed) */
-  generateSaasProfile: () =>
-    apiFetch<unknown>("/generate-saas-profile", { method: "POST" }),
+  /** Generate content strategy (subtopics) */
+  generateContentStrategy: () =>
+    apiFetch<unknown>("/generate-content-strategy", { method: "POST" }),
 
-  /** Step 2 — Content categories (reads saas profile from DB, no body needed) */
-  generateCategories: () =>
-    apiFetch<unknown>("/generate-categories", { method: "POST" }),
-
-  /** Step 3 — Content pillars + subtopics (reads categories from DB, no body needed) */
-  generateSubtopics: () =>
-    apiFetch<unknown>("/generate-subtopics", { method: "POST" }),
-
-  /** Step 4 — Generate N educational posts (randomly picks subtopics from DB) */
+  /** Generate N educational posts (randomly picks subtopics from DB) */
   generatePosts: (count = 10) =>
     apiFetch<{ success: boolean; posts: unknown[] }>("/generate-subtopic-post", {
       method: "POST",
       body: JSON.stringify({ count }),
     }),
+
+  /** Fetch all generated posts */
+  getPosts: () => apiFetch<unknown>("/posts"),
 
   logout: () => apiFetch<void>("/auth/logout"),
 };

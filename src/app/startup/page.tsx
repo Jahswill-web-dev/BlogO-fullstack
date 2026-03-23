@@ -177,11 +177,9 @@ export default function StartupOnboarding() {
         productAudience:    formData.productFor    || undefined,
         productSolution:    formData.productHelps  || undefined,
       });
-      await api.generateSaasProfile();
-      await api.generateCategories();
-      await api.generateSubtopics();
+      await api.generateContentStrategy();
       await api.generatePosts(10);
-      router.push("/dashboard");
+      router.push("/dashboard?schedule=true");
     } catch {
       setGenError("Content generation failed. Please try again.");
       setGenerating(false);

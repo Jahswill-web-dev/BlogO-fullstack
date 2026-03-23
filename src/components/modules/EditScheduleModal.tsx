@@ -29,6 +29,7 @@ export const FREQUENCIES = [
   { label: "Every 15 minutes", minutes: 15 },
   { label: "Every 30 minutes", minutes: 30 },
   { label: "Every hour",       minutes: 60 },
+  { label: "Every 2 hours",    minutes: 120 },
   { label: "Every 6 hours",    minutes: 360 },
   { label: "Every day",        minutes: 1440 },
 ];
@@ -159,11 +160,13 @@ export function EditScheduleModal({
   dayPosts,
   onClose,
   onSave,
+  initialFrequency = "Every 5 minutes",
 }: {
   post: Post;
   dayPosts: Post[];
   onClose: () => void;
   onSave: (id: string, content: string, date: Date) => void;
+  initialFrequency?: string;
 }) {
   const [localPosts, setLocalPosts] = useState<Post[]>(dayPosts);
   const [activeId, setActiveId] = useState(post.id);
@@ -173,7 +176,7 @@ export function EditScheduleModal({
   const [startTime, setStartTime] = useState(
     post.scheduledDate ? timeToHHMM(post.scheduledDate) : "20:00"
   );
-  const [frequency, setFrequency] = useState("Every 5 minutes");
+  const [frequency, setFrequency] = useState(initialFrequency);
 
   const freqMinutes =
     FREQUENCIES.find((f) => f.label === frequency)?.minutes ?? 5;
