@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import React, { useEffect, useRef, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Post, dayKey } from "@/components/modules/EditScheduleModal";
+import { AutoSchedulePopover } from "@/components/modules/AutoSchedulePopover";
 import { cn } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -116,9 +117,10 @@ function CompactPostCard({
 interface CalendarCardProps {
   posts: Post[];
   onPostClick: (post: Post) => void;
+  onBulkSchedule: (scheduledPosts: Post[]) => void;
 }
 
-export function CalendarCard({ posts, onPostClick }: CalendarCardProps) {
+export function CalendarCard({ posts, onPostClick, onBulkSchedule }: CalendarCardProps) {
   const today = useMemo(() => new Date(), []);
   const todayKey = useMemo(() => dayKey(today), [today]);
 
@@ -128,6 +130,8 @@ export function CalendarCard({ posts, onPostClick }: CalendarCardProps) {
   );
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const [autoScheduleOpen, setAutoScheduleOpen] = useState(false);
+  const autoScheduleRef = useRef<HTMLDivElement>(null);
 
   /* ---------- derived data ---------- */
   const postsByDay = useMemo(() => {
@@ -173,9 +177,31 @@ export function CalendarCard({ posts, onPostClick }: CalendarCardProps) {
     setMobileSheetOpen(true);
   };
 
+  /* Close auto-schedule popover on outside click or Escape */
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAutoScheduleOpen(false);
+    };
+    const handleClick = (e: MouseEvent) => {
+      if (
+        autoScheduleOpen &&
+        autoScheduleRef.current &&
+        !autoScheduleRef.current.contains(e.target as Node)
+      ) {
+        setAutoScheduleOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    document.addEventListener("mousedown", handleClick);
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.removeEventListener("mousedown", handleClick);
+    };
+  }, [autoScheduleOpen]);
+
   /* ---------------------------------------------------------------- */
   return (
-    <div className="bg-[#0B0F19] rounded-xl border border-[#1F2933] overflow-hidden">
+    <div className="relative bg-[#0B0F19] rounded-xl border border-[#1F2933]">
 
       {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1F2933]">
@@ -200,27 +226,69 @@ export function CalendarCard({ posts, onPostClick }: CalendarCardProps) {
           </button>
         </div>
 
-        {/* Week tabs */}
-        <div className="flex items-center gap-0.5">
-          {[1, 2, 3, 4].map((w) => (
+        {/* Week tabs + Auto-schedule button */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3, 4].map((w) => (
+              <button
+                key={w}
+                onClick={() => setActiveWeek(w)}
+                className={cn(
+                  "px-2.5 py-1 rounded text-xs font-medium transition select-none",
+                  activeWeek === w
+                    ? "bg-[#1F2933] text-white border border-[#2f3336]"
+                    : "text-white/40 hover:text-white/80"
+                )}
+              >
+                <span className="sm:hidden">W{w}</span>
+                <span className="hidden sm:inline">Week {w}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Auto-schedule button + popover anchor */}
+          <div className="relative" ref={autoScheduleRef}>
             <button
-              key={w}
-              onClick={() => setActiveWeek(w)}
+              onClick={() => setAutoScheduleOpen((v) => !v)}
               className={cn(
-                "px-2.5 py-1 rounded text-xs font-medium transition select-none",
-                activeWeek === w
-                  ? "bg-[#1F2933] text-white border border-[#2f3336]"
-                  : "text-white/40 hover:text-white/80"
+                "flex items-center gap-1.5 text-white hover:opacity-90 transition-opacity",
+                "px-[7px] sm:px-[11px] py-[5px] rounded-[8px] text-[12px] font-medium"
               )}
+              style={{ background: "#1D9BF0" }}
             >
-              Week {w}
+              <CalendarDays className="w-3 h-3" />
+              <span className="hidden sm:inline">Auto-schedule</span>
             </button>
-          ))}
+
+            {/* Desktop popover */}
+            <AnimatePresence>
+              {autoScheduleOpen && (
+                <motion.div
+                  key="auto-schedule-popover"
+                  className="hidden md:block absolute right-0 z-50"
+                  style={{ top: "calc(100% + 8px)" }}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.22, ease: "easeOut" }}
+                >
+                  <AutoSchedulePopover
+                    posts={posts}
+                    onClose={() => setAutoScheduleOpen(false)}
+                    onConfirm={(scheduled) => {
+                      onBulkSchedule(scheduled);
+                      setAutoScheduleOpen(false);
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
       {/* ── Calendar body: day grid + side panel ── */}
-      <div className="flex min-h-0">
+      <div className="flex min-h-0 overflow-hidden">
 
         {/* Day grid */}
         <div className="flex-1 min-w-0 overflow-x-auto">
@@ -448,6 +516,47 @@ export function CalendarCard({ posts, onPostClick }: CalendarCardProps) {
                   ))
                 )}
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Mobile: Auto-schedule bottom sheet ── */}
+      <AnimatePresence>
+        {autoScheduleOpen && (
+          <>
+            <motion.div
+              key="auto-sched-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setAutoScheduleOpen(false)}
+              className="md:hidden fixed inset-0 z-40 bg-black/50"
+            />
+            <motion.div
+              key="auto-sched-sheet"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ duration: 0.25, ease: "easeOut" as const }}
+              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0F1419] border-t border-x border-[#1F2933] rounded-t-2xl overflow-y-auto scrollbar-popup"
+              style={{ maxHeight: "90vh" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drag handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-8 h-1 rounded-full bg-[#1F2933]" />
+              </div>
+              <AutoSchedulePopover
+                posts={posts}
+                onClose={() => setAutoScheduleOpen(false)}
+                onConfirm={(scheduled) => {
+                  onBulkSchedule(scheduled);
+                  setAutoScheduleOpen(false);
+                }}
+                isMobileSheet
+              />
             </motion.div>
           </>
         )}

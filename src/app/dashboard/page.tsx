@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Menu } from "lucide-react";
+import { ChevronDown, Menu, Plus } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
-import { GradientButton } from "@/components/ui/buttons/gradientButton";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
@@ -56,26 +55,6 @@ function makeSamplePosts(): Post[] {
     { id: "27", content: "Most users delay publishing because they don't have a clear content calendar.", platform: "Twitter", status: "scheduled", scheduledDate: at(13, 20) },
     { id: "28", content: "Most users don't realise how much time they waste on manual scheduling.", platform: "Twitter",      status: "draft",     scheduledDate: at(14, 20) },
   ];
-}
-
-/* ------------------------------------------------------------------ */
-/*  Stat Card                                                           */
-/* ------------------------------------------------------------------ */
-function StatCard({
-  label,
-  value,
-  gradient,
-}: {
-  label: string;
-  value: number;
-  gradient: string;
-}) {
-  return (
-    <div className={`${gradient} rounded-xl p-5`}>
-      <p className="text-gray-400 text-sm mb-3">{label}</p>
-      <p className="text-white text-4xl font-bold">{value}</p>
-    </div>
-  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -209,6 +188,15 @@ export default function DashboardPage() {
     );
   };
 
+  const handleBulkSchedule = (scheduledPosts: Post[]) => {
+    setPosts((prev) =>
+      prev.map((p) => {
+        const updated = scheduledPosts.find((s) => s.id === p.id);
+        return updated ?? p;
+      })
+    );
+  };
+
   const handleSave = (id: string, content: string, date: Date) => {
     setPosts((prev) =>
       prev.map((p) =>
@@ -233,53 +221,86 @@ export default function DashboardPage() {
 
       <main className="flex-1 lg:ml-60 min-h-screen overflow-y-auto">
         <div className="p-4 sm:p-6">
-          <button
-            className="lg:hidden mb-4 text-white/60 hover:text-white"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          {/* Header card */}
+          <div className="bg-[#0B0F19] rounded-xl border border-[#1F2933] mb-8">
+            {/* Top bar */}
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-3">
+                <button
+                  className="lg:hidden text-white/60 hover:text-white flex-shrink-0"
+                  onClick={() => setSidebarOpen(true)}
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+                <h1 className="text-sm sm:text-base leading-tight">
+                  <span className="hidden sm:inline text-white/50">Hi </span>
+                  <span className="font-semibold text-white">
+                    {user?.name?.split(" ")[0] ?? "there"}
+                  </span>
+                  <span className="hidden sm:inline text-white/50">
+                    , what&apos;s the update?
+                  </span>
+                  <span className="sm:hidden text-white/50"> 👋</span>
+                </h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <button className="flex items-center gap-1.5 border border-[#1F2933] text-white/60 hover:text-white hover:border-[#2f3336] transition rounded-lg px-3 py-1.5 text-xs sm:text-sm">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  <span>{scheduledCount}</span>
+                  <span className="hidden sm:inline ml-0.5">tweets</span>
+                </button>
+                <button
+                  className="flex items-center gap-1.5 text-white rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity"
+                  style={{ background: "#5C3FED" }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Generate tweets</span>
+                  <span className="sm:hidden">Generate</span>
+                </button>
+              </div>
+            </div>
 
-          {/* Top bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h1 className="text-white text-xl sm:text-2xl font-semibold">
-              Hi {user?.name?.split(" ")[0] ?? "there"}, what&apos;s the
-              update?
-            </h1>
-            <div className="flex items-center gap-3">
-              <button className="flex items-center gap-2 bg-[#1F2933] text-white rounded-lg px-4 py-2 text-sm hover:bg-[#263241] transition border border-[#1F2933]">
-                <ChevronDown className="w-4 h-4" />
-                {scheduledCount} Tweets
-              </button>
-              <GradientButton
-                buttonLabel="Generate Tweets"
-                className="px-4 py-2 text-sm"
-              />
+            {/* Stats row */}
+            <div className="grid grid-cols-3" style={{ borderTop: "0.5px solid #1F2933" }}>
+              {(
+                [
+                  { label: "All Time", value: totalPosts, unit: "tweets", dot: "#5C3FED" },
+                  { label: "This Week", value: postedThisWeek, unit: "tweeted", dot: "#E36A3A" },
+                  { label: "Scheduled", value: scheduledCount, unit: "queued", dot: "#22c55e" },
+                ] as const
+              ).map(({ label, value, unit, dot }, i) => (
+                <div
+                  key={label}
+                  className="px-4 py-3 sm:px-6 sm:py-4"
+                  style={i > 0 ? { borderLeft: "0.5px solid #1F2933" } : {}}
+                >
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span
+                      className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                      style={{ background: dot }}
+                    />
+                    <span className="text-[9px] sm:text-[10px] font-medium text-white/40 uppercase tracking-widest">
+                      {label}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-[18px] sm:text-[22px] font-medium text-white leading-none">
+                      {value}
+                    </span>
+                    <span className="text-[10px] sm:text-xs text-white/30">{unit}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-            <StatCard
-              label="All Time Tweets"
-              value={totalPosts}
-              gradient="bg-[linear-gradient(135deg,#1a0f3d_0%,#2d1b69_100%)]"
-            />
-            <StatCard
-              label="Tweeted This Week"
-              value={postedThisWeek}
-              gradient="bg-[linear-gradient(135deg,#2a1205_0%,#5c2a0a_100%)]"
-            />
-            <StatCard
-              label="Scheduled Tweets"
-              value={scheduledCount}
-              gradient="bg-[linear-gradient(135deg,#0d1628_0%,#1a2d50_100%)]"
-            />
-          </div>
-
           {/* Calendar */}
-          <div className="mt-8">
-            <CalendarCard posts={posts} onPostClick={handlePostClick} />
+          <div>
+            <CalendarCard
+              posts={posts}
+              onPostClick={handlePostClick}
+              onBulkSchedule={handleBulkSchedule}
+            />
           </div>
         </div>
       </main>
