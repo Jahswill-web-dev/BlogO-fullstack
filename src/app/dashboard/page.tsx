@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, ChevronDown, Menu } from "lucide-react";
+import { ChevronDown, Menu } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
 import { GradientButton } from "@/components/ui/buttons/gradientButton";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
@@ -12,11 +13,9 @@ import {
   Post,
   dayKey,
 } from "@/components/modules/EditScheduleModal";
-
-/* ------------------------------------------------------------------ */
-/*  Constants                                                           */
-/* ------------------------------------------------------------------ */
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+import { OnboardingPostsModal } from "@/components/modules/OnboardingPostsModal";
+import { CalendarCard } from "@/components/modules/CalendarCard";
+import { PostDetailPopup } from "@/components/modules/PostDetailPopup";
 
 /* ------------------------------------------------------------------ */
 /*  Sample data                                                         */
@@ -60,38 +59,6 @@ function makeSamplePosts(): Post[] {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Helpers                                                             */
-/* ------------------------------------------------------------------ */
-function getWeekDays(month: Date, weekNumber: number): Date[] {
-  const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
-  const firstSunday = new Date(firstDay);
-  firstSunday.setDate(firstDay.getDate() - firstDay.getDay());
-  const weekStart = new Date(firstSunday);
-  weekStart.setDate(firstSunday.getDate() + (weekNumber - 1) * 7);
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(weekStart.getDate() + i);
-    return d;
-  });
-}
-
-function getWeekNumberForDate(date: Date): number {
-  const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-  const firstSunday = new Date(firstDay);
-  firstSunday.setDate(firstDay.getDate() - firstDay.getDay());
-  const diffDays = Math.floor((date.getTime() - firstSunday.getTime()) / 86400000);
-  return Math.floor(diffDays / 7) + 1;
-}
-
-const postCardBg = (status: Post["status"]) => {
-  switch (status) {
-    case "scheduled": return "bg-[#1a2638]";
-    case "posted":    return "bg-[#0f2d1a]";
-    case "draft":     return "bg-[#262626]";
-  }
-};
-
-/* ------------------------------------------------------------------ */
 /*  Stat Card                                                           */
 /* ------------------------------------------------------------------ */
 function StatCard({
@@ -119,63 +86,69 @@ export default function DashboardPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(() => new Date());
-  const [activeWeek, setActiveWeek] = useState(() => getWeekNumberForDate(new Date()));
+  const [detailPost, setDetailPost] = useState<Post | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [autoSchedule, setAutoSchedule] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [onboardingPosts, setOnboardingPosts] = useState<Post[]>([]);
 
   useEffect(() => {
-    const fromOnboarding = new URLSearchParams(window.location.search).get("schedule") === "true";
+    const fromOnboarding =
+      new URLSearchParams(window.location.search).get("schedule") === "true";
 
-    api.getPosts().then((raw) => {
-      console.log("[Dashboard] GET /posts raw response:", JSON.stringify(raw));
-      // Unwrap if the backend returns { posts: [...] } or { data: [...] }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const apiPosts = Array.isArray(raw) ? raw : ((raw as any)?.posts ?? (raw as any)?.data ?? []);
-      console.log("[Dashboard] GET /posts response:", apiPosts);
+    api
+      .getPosts()
+      .then((raw) => {
+        console.log("[Dashboard] GET /posts raw response:", JSON.stringify(raw));
+        // Unwrap if the backend returns { posts: [...] } or { data: [...] }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const apiPosts = Array.isArray(raw)
+          ? raw
+          : ((raw as any)?.posts ?? (raw as any)?.data ?? []);
+        console.log("[Dashboard] GET /posts response:", apiPosts);
 
-      if (!apiPosts || apiPosts.length === 0) {
-        console.log("[Dashboard] No posts returned, using sample data");
+        if (!apiPosts || apiPosts.length === 0) {
+          console.log("[Dashboard] No posts returned, using sample data");
+          setPosts(makeSamplePosts());
+          setPostsLoading(false);
+          return;
+        }
+
+        const today9am = new Date();
+        today9am.setHours(9, 0, 0, 0);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fetched: Post[] = apiPosts.map((p: any) => ({
+          id: p._id,
+          content: p.finalPost,
+          platform: "Twitter",
+          status: (p.status as Post["status"]) ?? "draft",
+          scheduledDate: p.scheduledDate
+            ? new Date(p.scheduledDate)
+            : new Date(today9am),
+        }));
+
+        console.log("[Dashboard] Mapped posts:", fetched);
+        setPosts(fetched);
+        setPostsLoading(false);
+
+        if (
+          fromOnboarding &&
+          sessionStorage.getItem("blogO_onboarding_shown") !== "true"
+        ) {
+          setAutoSchedule(true);
+          setShowOnboardingModal(true);
+          setOnboardingPosts(fetched);
+        }
+      })
+      .catch((err) => {
+        console.error("[Dashboard] GET /posts failed:", err);
         setPosts(makeSamplePosts());
         setPostsLoading(false);
-        return;
-      }
-
-      const today9am = new Date();
-      today9am.setHours(9, 0, 0, 0);
-
-      const fetched: Post[] = apiPosts.map((p) => ({
-        id: p._id,
-        content: p.finalPost,
-        platform: "Twitter",
-        status: (p.status as Post["status"]) ?? "draft",
-        scheduledDate: p.scheduledDate ? new Date(p.scheduledDate) : new Date(today9am),
-      }));
-
-      console.log("[Dashboard] Mapped posts:", fetched);
-      setPosts(fetched);
-      setPostsLoading(false);
-
-      if (fromOnboarding) {
-        const today = new Date();
-        setAutoSchedule(true);
-        setCurrentMonth(today);
-        setActiveWeek(getWeekNumberForDate(today));
-        setSelectedPost(fetched[0]);
-      }
-    }).catch((err) => {
-      console.error("[Dashboard] GET /posts failed:", err);
-      setPosts(makeSamplePosts());
-      setPostsLoading(false);
-    });
+      });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // All hooks before any conditional return
-  const weekDays = useMemo(
-    () => getWeekDays(currentMonth, activeWeek),
-    [currentMonth, activeWeek]
-  );
-
+  // postsByDay is still needed to compute selectedDayPosts for EditScheduleModal
   const postsByDay = useMemo(() => {
     const map: Record<string, Post[]> = {};
     posts.forEach((p) => {
@@ -200,32 +173,58 @@ export default function DashboardPage() {
   }).length;
   const scheduledCount = posts.filter((p) => p.status === "scheduled").length;
 
-  const monthLabel = currentMonth.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
+  /* ---------- handlers ---------- */
+  const handleOnboardingClose = () => {
+    sessionStorage.setItem("blogO_onboarding_shown", "true");
+    setShowOnboardingModal(false);
+  };
 
-  const navigateMonth = (dir: -1 | 1) => {
-    const d = new Date(currentMonth);
-    d.setMonth(d.getMonth() + dir);
-    setCurrentMonth(d);
-    setActiveWeek(1);
+  const handleScheduleAll = (postsToSchedule: Post[]) => {
+    sessionStorage.setItem("blogO_onboarding_shown", "true");
+    setShowOnboardingModal(false);
+    if (postsToSchedule.length > 0) {
+      setPosts((prev) => {
+        const onboardingIds = new Set(onboardingPosts.map((p) => p.id));
+        const existing = prev.filter((p) => !onboardingIds.has(p.id));
+        return [...existing, ...postsToSchedule];
+      });
+      setSelectedPost(postsToSchedule[0]);
+    }
+  };
+
+  const handlePostClick = (post: Post) => setDetailPost(post);
+
+  const handleEditFromPopup = (post: Post) => {
+    setDetailPost(null);
+    setSelectedPost(post);
+  };
+
+  const handleDelete = (id: string) => {
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handlePostNow = (id: string) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status: "posted" } : p))
+    );
   };
 
   const handleSave = (id: string, content: string, date: Date) => {
     setPosts((prev) =>
       prev.map((p) =>
-        p.id === id ? { ...p, content, scheduledDate: date, status: "scheduled" } : p
+        p.id === id
+          ? { ...p, content, scheduledDate: date, status: "scheduled" }
+          : p
       )
     );
   };
 
   const selectedDayPosts = selectedPost?.scheduledDate
     ? (postsByDay[dayKey(selectedPost.scheduledDate)] ?? [selectedPost])
-    : [selectedPost].filter(Boolean) as Post[];
+    : ([selectedPost].filter(Boolean) as Post[]);
 
   return (
-    <div className="min-h-screen bg-[#08060A] flex">
+    <div className="min-h-screen bg-[#08060A] flex relative">
       <DashboardSidebar
         mobileOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -244,7 +243,8 @@ export default function DashboardPage() {
           {/* Top bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <h1 className="text-white text-xl sm:text-2xl font-semibold">
-              Hi {user?.name?.split(" ")[0] ?? "there"}, what&apos;s the update?
+              Hi {user?.name?.split(" ")[0] ?? "there"}, what&apos;s the
+              update?
             </h1>
             <div className="flex items-center gap-3">
               <button className="flex items-center gap-2 bg-[#1F2933] text-white rounded-lg px-4 py-2 text-sm hover:bg-[#263241] transition border border-[#1F2933]">
@@ -279,102 +279,24 @@ export default function DashboardPage() {
 
           {/* Calendar */}
           <div className="mt-8">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigateMonth(-1)}
-                  className="p-1.5 rounded-lg bg-[#1F2933] text-white hover:bg-[#263241] transition"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <span className="text-white font-medium text-sm min-w-[130px] text-center">
-                  {monthLabel}
-                </span>
-                <button
-                  onClick={() => navigateMonth(1)}
-                  className="p-1.5 rounded-lg bg-[#1F2933] text-white hover:bg-[#263241] transition"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex items-center gap-1 bg-[#0F1419] rounded-lg p-1">
-                {[1, 2, 3, 4].map((w) => (
-                  <button
-                    key={w}
-                    onClick={() => setActiveWeek(w)}
-                    className={`px-3 py-1.5 rounded-md text-sm transition ${
-                      activeWeek === w
-                        ? "bg-[#1F2933] text-white"
-                        : "text-white/50 hover:text-white"
-                    }`}
-                  >
-                    Week {w}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <div className="min-w-[700px]">
-                <div className="grid grid-cols-7 gap-1 mb-1">
-                  {weekDays.map((day, idx) => {
-                    const isToday = dayKey(day) === dayKey(new Date());
-                    return (
-                      <div
-                        key={idx}
-                        className="bg-[#0F1419] rounded-t-lg p-3 text-center"
-                      >
-                        <p
-                          className={`font-semibold text-lg leading-none ${
-                            isToday ? "text-[#5C3FED]" : "text-white"
-                          }`}
-                        >
-                          {day.getDate()}
-                        </p>
-                        <p className="text-gray-500 text-xs mt-1">
-                          {DAY_NAMES[day.getDay()]}
-                        </p>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {weekDays.map((day, idx) => {
-                    const key = dayKey(day);
-                    const dayPosts = postsByDay[key] ?? [];
-                    return (
-                      <div
-                        key={idx}
-                        className="bg-[#0F1419] rounded-b-lg p-2 min-h-[200px] space-y-1.5"
-                      >
-                        {dayPosts.map((post) => (
-                          <button
-                            key={post.id}
-                            onClick={() => setSelectedPost(post)}
-                            className={`w-full text-left p-2 rounded-md transition-all hover:brightness-125 hover:scale-[1.02] ${postCardBg(
-                              post.status
-                            )}`}
-                          >
-                            <p className="text-white/50 text-[10px] mb-0.5">
-                              {post.scheduledDate?.toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
-                            <p className="text-white/80 text-[11px] line-clamp-2 leading-snug">
-                              {post.content}
-                            </p>
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+            <CalendarCard posts={posts} onPostClick={handlePostClick} />
           </div>
         </div>
       </main>
+
+      <AnimatePresence>
+        {detailPost && (
+          <PostDetailPopup
+            key="post-detail"
+            post={detailPost}
+            user={user}
+            onClose={() => setDetailPost(null)}
+            onEdit={handleEditFromPopup}
+            onDelete={handleDelete}
+            onPostNow={handlePostNow}
+          />
+        )}
+      </AnimatePresence>
 
       {selectedPost && (
         <EditScheduleModal
@@ -385,6 +307,18 @@ export default function DashboardPage() {
           initialFrequency={autoSchedule ? "Every 2 hours" : "Every 5 minutes"}
         />
       )}
+
+      <AnimatePresence>
+        {showOnboardingModal && (
+          <OnboardingPostsModal
+            key="onboarding-modal"
+            posts={onboardingPosts}
+            user={user}
+            onClose={handleOnboardingClose}
+            onScheduleAll={handleScheduleAll}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
