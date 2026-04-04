@@ -142,8 +142,13 @@ export default function DashboardPage() {
     setSelectedPost(post);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await api.deletePost(id);
+    } catch (err) {
+      console.error("[Dashboard] DELETE /posts/:id failed:", err);
+    }
   };
 
   const handlePostNow = async (id: string) => {
@@ -354,6 +359,7 @@ export default function DashboardPage() {
             user={user}
             onClose={handleOnboardingClose}
             onScheduleAll={handleScheduleAll}
+            onDelete={handleDelete}
           />
         )}
       </AnimatePresence>

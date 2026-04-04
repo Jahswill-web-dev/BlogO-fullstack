@@ -140,6 +140,7 @@ interface OnboardingPostsModalProps {
   user: AuthUser | null;
   onClose: () => void;
   onScheduleAll: (posts: Post[]) => void;
+  onDelete?: (id: string) => void;
 }
 
 export function OnboardingPostsModal({
@@ -147,6 +148,7 @@ export function OnboardingPostsModal({
   user,
   onClose,
   onScheduleAll,
+  onDelete,
 }: OnboardingPostsModalProps) {
   const [localPosts, setLocalPosts] = useState<Post[]>(posts);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -154,6 +156,7 @@ export function OnboardingPostsModal({
   const handleDelete = (id: string) => {
     setLocalPosts((prev) => prev.filter((p) => p.id !== id));
     if (selectedId === id) setSelectedId(null);
+    onDelete?.(id);
   };
 
   const count = localPosts.length;

@@ -105,6 +105,12 @@ export const api = {
   /** Fetch all generated posts */
   getPosts: () => apiFetch<unknown>("/posts"),
 
+  /** Delete a post by ID */
+  deletePost: (id: string) =>
+    apiFetch<{ success: boolean; message: string }>(`/posts/${id}`, {
+      method: "DELETE",
+    }),
+
   /** Post a tweet to the connected X account */
   postTweet: (text: string) =>
     apiFetch<{ data: { id: string; text: string } }>("/x/tweet", {
