@@ -45,6 +45,16 @@ export type UserProfilePayload = {
   productSolution?: string;
 };
 
+/** Returned by GET /profile */
+export type UserProfile = {
+  userId: string;
+  userNiche: string;
+  targetAudience: string;
+  focusArea: string;
+  productName?: string;
+  createdAt: string;
+};
+
 /** Returned by GET /posts */
 export type ApiPost = {
   _id: string;
@@ -59,6 +69,9 @@ export type ApiPost = {
 export const api = {
   /** Check auth — 401 means not logged in. Returns User document. */
   getMe: () => apiFetch<AuthUser>("/auth/me"),
+
+  /** Retrieve current user's niche/audience profile */
+  getProfile: () => apiFetch<UserProfile>("/profile"),
 
   /** Save onboarding form data as the user's niche/audience profile */
   saveProfile: (body: UserProfilePayload) =>
@@ -78,8 +91,26 @@ export const api = {
       body: JSON.stringify({ count }),
     }),
 
+  /** Generate posts for a specific niche + focus areas (Mode B) */
+  generateTargetedPosts: (body: {
+    niche: string;
+    focusAreas: string[];
+    count: number;
+  }) =>
+    apiFetch<{ success: boolean; posts: unknown[] }>("/generate-targeted-posts", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
   /** Fetch all generated posts */
   getPosts: () => apiFetch<unknown>("/posts"),
+
+  /** Post a tweet to the connected X account */
+  postTweet: (text: string) =>
+    apiFetch<{ data: { id: string; text: string } }>("/x/tweet", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
 
   logout: () => apiFetch<void>("/auth/logout"),
 };

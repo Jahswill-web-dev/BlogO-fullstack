@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   CalendarDays,
@@ -8,6 +8,7 @@ import {
   Repeat2,
   Heart,
   BarChart2,
+  Pencil,
 } from "lucide-react";
 import { Post } from "@/components/modules/EditScheduleModal";
 import { AuthUser } from "@/lib/api";
@@ -133,6 +134,7 @@ interface PostDetailPopupProps {
   onEdit: (post: Post) => void;
   onDelete: (id: string) => void;
   onPostNow: (id: string) => void;
+  onContentSave: (id: string, content: string) => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -146,8 +148,33 @@ function PopupContent({
   onEdit,
   onDelete,
   onPostNow,
+  onContentSave,
 }: PostDetailPopupProps) {
   const date = post.scheduledDate ?? new Date();
+  const [draft, setDraft] = useState(post.content);
+  const [focused, setFocused] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  };
+
+  useEffect(() => {
+    autoResize();
+  }, []);
+
+  const commitSave = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== post.content.trim()) {
+      onContentSave(post.id, draft);
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 1800);
+    }
+  };
 
   const handleDelete = () => {
     if (window.confirm("Are you sure you want to delete this post?")) {
@@ -224,13 +251,36 @@ function PopupContent({
           </span>
         </div>
 
-        {/* Post body */}
-        <p
-          className="text-white/90 whitespace-pre-wrap"
-          style={{ fontSize: 14, lineHeight: 1.6 }}
-        >
-          {post.content}
-        </p>
+        {/* Post body — inline editable */}
+        <div className="relative -mx-2 group">
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => { setDraft(e.target.value); autoResize(); }}
+            onFocus={() => setFocused(true)}
+            onBlur={() => { setFocused(false); commitSave(); }}
+            className={cn(
+              "w-full text-white/90 bg-transparent resize-none outline-none rounded-lg px-2 py-1 transition-colors",
+              focused
+                ? "border border-[#2f3336]"
+                : "border border-transparent hover:border-[#1F2933] cursor-text"
+            )}
+            style={{ fontSize: 14, lineHeight: 1.6, overflow: "hidden" }}
+          />
+          {/* Edit hint — shows on hover when not focused */}
+          {!focused && !savedFlash && (
+            <span className="absolute top-1 right-2 flex items-center gap-1 text-[10px] text-white/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
+              <Pencil size={9} />
+              edit
+            </span>
+          )}
+          {/* Saved confirmation */}
+          {savedFlash && (
+            <span className="absolute top-1 right-2 flex items-center gap-1 text-[10px] text-[#22c55e] pointer-events-none select-none">
+              ✓ Saved
+            </span>
+          )}
+        </div>
 
         {/* Engagement row */}
         <div

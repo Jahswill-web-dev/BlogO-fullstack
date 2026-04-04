@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Menu, Plus } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
-import { api } from "@/lib/api";
+import { api, ApiPost, UserProfile } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { GeneratePanel } from "@/components/GeneratePanel";
 import { DashboardSidebar } from "@/components/modules/DashboardSidebar";
 import {
   EditScheduleModal,
@@ -15,47 +16,6 @@ import {
 import { OnboardingPostsModal } from "@/components/modules/OnboardingPostsModal";
 import { CalendarCard } from "@/components/modules/CalendarCard";
 import { PostDetailPopup } from "@/components/modules/PostDetailPopup";
-
-/* ------------------------------------------------------------------ */
-/*  Sample data                                                         */
-/* ------------------------------------------------------------------ */
-function makeSamplePosts(): Post[] {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const at = (day: number, hour = 20) => new Date(y, m, day, hour, 0, 0);
-
-  return [
-    { id: "1",  content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "scheduled", scheduledDate: at(1, 20) },
-    { id: "2",  content: "Most users don't know that consistent posting is the #1 driver of follower growth. We studied 200 accounts and found this pattern 👇", platform: "Twitter", status: "scheduled", scheduledDate: at(2, 20) },
-    { id: "3",  content: "Most users delay publishing because they don't have a clear content calendar. Use this free template to plan 30 days of content in 1 hour.", platform: "Twitter", status: "posted",    scheduledDate: at(3, 20) },
-    { id: "4",  content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "scheduled", scheduledDate: at(4, 20) },
-    { id: "5",  content: "Most users don't know that consistent posting is the #1 driver of follower growth. We studied 200 accounts and found this pattern 👇", platform: "Twitter", status: "scheduled", scheduledDate: at(5, 20) },
-    { id: "6",  content: "Most users delay publishing because they don't have a clear content calendar. Use this free template to plan 30 days of content in 1 hour.", platform: "Twitter", status: "scheduled", scheduledDate: at(6, 20) },
-    { id: "7",  content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "draft",     scheduledDate: at(7, 20) },
-    { id: "8",  content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "scheduled", scheduledDate: at(1, 14) },
-    { id: "9",  content: "Most users delay publishing because they don't have a clear content calendar.", platform: "Twitter", status: "scheduled", scheduledDate: at(2, 14) },
-    { id: "10", content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "scheduled", scheduledDate: at(3, 14) },
-    { id: "11", content: "Most users don't know that consistent posting is the #1 driver of follower growth.", platform: "Twitter", status: "posted",    scheduledDate: at(4, 14) },
-    { id: "12", content: "Most users delay publishing because they don't have a clear content calendar.", platform: "Twitter", status: "scheduled", scheduledDate: at(5, 14) },
-    { id: "13", content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "scheduled", scheduledDate: at(6, 14) },
-    { id: "14", content: "Most users don't know that consistent posting drives follower growth.", platform: "Twitter", status: "draft",     scheduledDate: at(7, 14) },
-    { id: "15", content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "scheduled", scheduledDate: at(1, 10) },
-    { id: "16", content: "Most users don't realise how much time they waste on manual scheduling. 🧵", platform: "Twitter", status: "scheduled", scheduledDate: at(2, 10) },
-    { id: "17", content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "scheduled", scheduledDate: at(3, 10) },
-    { id: "18", content: "Most users delay publishing because they don't have a clear content calendar.", platform: "Twitter", status: "posted",    scheduledDate: at(4, 10) },
-    { id: "19", content: "Most users don't realise how much time they waste on manual scheduling.", platform: "Twitter", status: "scheduled", scheduledDate: at(5, 10) },
-    { id: "20", content: "Coded for ~7 hours today.\nGot a call from my co-founder in the middle of it we just crossed $20k MRR.\nStill processing it.\nThe funnel improvements finally clicked.", platform: "Twitter", status: "scheduled", scheduledDate: at(6, 10) },
-    { id: "21", content: "Most users delay publishing because they don't have a clear content calendar.", platform: "Twitter", status: "draft",     scheduledDate: at(7, 10) },
-    { id: "22", content: "Most users don't realise how much time they waste on manual scheduling. 🧵", platform: "Twitter", status: "scheduled", scheduledDate: at(8,  20) },
-    { id: "23", content: "Most users don't know that consistent posting drives follower growth.", platform: "Twitter",        status: "scheduled", scheduledDate: at(9,  20) },
-    { id: "24", content: "Most users delay publishing because they don't have a clear content calendar.", platform: "Twitter", status: "draft",     scheduledDate: at(10, 20) },
-    { id: "25", content: "Most users don't realise how much time they waste on manual scheduling. 🧵", platform: "Twitter", status: "scheduled", scheduledDate: at(11, 20) },
-    { id: "26", content: "Most users don't know that consistent posting drives follower growth.", platform: "Twitter",        status: "scheduled", scheduledDate: at(12, 20) },
-    { id: "27", content: "Most users delay publishing because they don't have a clear content calendar.", platform: "Twitter", status: "scheduled", scheduledDate: at(13, 20) },
-    { id: "28", content: "Most users don't realise how much time they waste on manual scheduling.", platform: "Twitter",      status: "draft",     scheduledDate: at(14, 20) },
-  ];
-}
 
 /* ------------------------------------------------------------------ */
 /*  Main Dashboard Page                                                 */
@@ -70,6 +30,9 @@ export default function DashboardPage() {
   const [autoSchedule, setAutoSchedule] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [onboardingPosts, setOnboardingPosts] = useState<Post[]>([]);
+  const [showGeneratePanel, setShowGeneratePanel] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     const fromOnboarding =
@@ -87,8 +50,6 @@ export default function DashboardPage() {
         console.log("[Dashboard] GET /posts response:", apiPosts);
 
         if (!apiPosts || apiPosts.length === 0) {
-          console.log("[Dashboard] No posts returned, using sample data");
-          setPosts(makeSamplePosts());
           setPostsLoading(false);
           return;
         }
@@ -122,10 +83,13 @@ export default function DashboardPage() {
       })
       .catch((err) => {
         console.error("[Dashboard] GET /posts failed:", err);
-        setPosts(makeSamplePosts());
         setPostsLoading(false);
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    api.getProfile().then(setUserProfile).catch(() => setUserProfile(null));
+  }, []);
 
   // postsByDay is still needed to compute selectedDayPosts for EditScheduleModal
   const postsByDay = useMemo(() => {
@@ -182,10 +146,66 @@ export default function DashboardPage() {
     setPosts((prev) => prev.filter((p) => p.id !== id));
   };
 
-  const handlePostNow = (id: string) => {
+  const handlePostNow = async (id: string) => {
+    const post = posts.find((p) => p.id === id);
+    if (!post) return;
+
+    // Optimistic update
     setPosts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: "posted" } : p))
     );
+
+    try {
+      await api.postTweet(post.content);
+    } catch (err) {
+      console.error("[Dashboard] POST /x/tweet failed:", err);
+      // Revert status on failure
+      setPosts((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: "scheduled" } : p))
+      );
+      alert("Failed to post tweet. Make sure your X account is connected.");
+    }
+  };
+
+  const handleContentSave = (id: string, content: string) => {
+    setPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, content } : p))
+    );
+    setDetailPost((prev) => (prev?.id === id ? { ...prev, content } : prev));
+  };
+
+  const handleGenerateCarousel = async (params: {
+    niche: string;
+    focusArea: string;
+    slideCount: number;
+  }) => {
+    setIsGenerating(true);
+    try {
+      const res = await api.generateTargetedPosts({
+        niche: params.niche,
+        focusAreas: [params.focusArea],
+        count: params.slideCount,
+      });
+      const today9am = new Date();
+      today9am.setHours(9, 0, 0, 0);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const newPosts: Post[] = (res.posts as ApiPost[]).map((p: any) => ({
+        id: p._id,
+        content: p.finalPost,
+        platform: "Twitter" as const,
+        status: "draft" as const,
+        scheduledDate: new Date(today9am),
+      }));
+      setPosts((prev) => [...newPosts, ...prev]);
+      setOnboardingPosts(newPosts);
+      setAutoSchedule(false);
+      setShowOnboardingModal(true);
+      setShowGeneratePanel(false);
+    } catch (err) {
+      console.error("[Dashboard] Generate targeted posts failed:", err);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleBulkSchedule = (scheduledPosts: Post[]) => {
@@ -244,18 +264,14 @@ export default function DashboardPage() {
                 </h1>
               </div>
               <div className="flex items-center gap-2">
-                <button className="flex items-center gap-1.5 border border-[#1F2933] text-white/60 hover:text-white hover:border-[#2f3336] transition rounded-lg px-3 py-1.5 text-xs sm:text-sm">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                  <span>{scheduledCount}</span>
-                  <span className="hidden sm:inline ml-0.5">tweets</span>
-                </button>
                 <button
                   className="flex items-center gap-1.5 text-white rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity"
                   style={{ background: "#5C3FED" }}
+                  onClick={() => setShowGeneratePanel(true)}
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Generate tweets</span>
-                  <span className="sm:hidden">Generate</span>
+                  <span className="hidden sm:inline">Create post</span>
+                  <span className="sm:hidden">Create</span>
                 </button>
               </div>
             </div>
@@ -315,6 +331,7 @@ export default function DashboardPage() {
             onEdit={handleEditFromPopup}
             onDelete={handleDelete}
             onPostNow={handlePostNow}
+            onContentSave={handleContentSave}
           />
         )}
       </AnimatePresence>
@@ -337,6 +354,19 @@ export default function DashboardPage() {
             user={user}
             onClose={handleOnboardingClose}
             onScheduleAll={handleScheduleAll}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showGeneratePanel && (
+          <GeneratePanel
+            key="generate-panel"
+            isOpen={showGeneratePanel}
+            onClose={() => setShowGeneratePanel(false)}
+            userNiche={userProfile?.userNiche ?? ""}
+            onGenerate={handleGenerateCarousel}
+            isGenerating={isGenerating}
           />
         )}
       </AnimatePresence>
