@@ -190,7 +190,7 @@ export default function DashboardPage() {
       today9am.setHours(9, 0, 0, 0);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const newPosts: Post[] = (res.posts as ApiPost[]).map((p: any) => ({
-        id: p._id,
+        id: p._id ?? p.id,
         content: p.finalPost,
         platform: "Twitter" as const,
         status: "draft" as const,
