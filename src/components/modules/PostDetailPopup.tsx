@@ -154,6 +154,7 @@ function PopupContent({
   const [draft, setDraft] = useState(post.content);
   const [focused, setFocused] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const autoResize = () => {
@@ -176,11 +177,11 @@ function PopupContent({
     }
   };
 
-  const handleDelete = () => {
-    if (window.confirm("Are you sure you want to delete this post?")) {
-      onDelete(post.id);
-      onClose();
-    }
+  const handleDelete = () => setConfirmingDelete(true);
+
+  const confirmDelete = () => {
+    onDelete(post.id);
+    onClose();
   };
 
   const handlePostNow = () => {
@@ -359,63 +360,109 @@ function PopupContent({
         </button>
       </div>
 
-      {/* ── Section 4: Action bar ── */}
-      <div
-        className="flex items-center"
-        style={{ padding: "12px 16px", gap: 8 }}
-      >
-        {/* Edit */}
-        <button
-          onClick={() => onEdit(post)}
-          className="text-white hover:opacity-80 transition-opacity"
-          style={{
-            flex: 1,
-            padding: "9px 0",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            background: "#1F2933",
-            border: "1px solid #2f3336",
-          }}
+      {/* ── Section 4: Action bar / Delete confirmation ── */}
+      {confirmingDelete ? (
+        <div
+          className="flex flex-col"
+          style={{ padding: "14px 16px", gap: 10 }}
         >
-          Edit
-        </button>
+          <p
+            className="text-center text-white/80"
+            style={{ fontSize: 13, fontWeight: 500 }}
+          >
+            Delete this post? This can&apos;t be undone.
+          </p>
+          <div className="flex items-center" style={{ gap: 8 }}>
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              className="text-white hover:opacity-80 transition-opacity"
+              style={{
+                flex: 1,
+                padding: "9px 0",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 500,
+                background: "#1F2933",
+                border: "1px solid #2f3336",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDelete}
+              className="text-white hover:opacity-90 transition-opacity"
+              style={{
+                flex: 1,
+                padding: "9px 0",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                background: "#DC2626",
+                border: "none",
+              }}
+            >
+              Yes, delete
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          className="flex items-center"
+          style={{ padding: "12px 16px", gap: 8 }}
+        >
+          {/* Edit */}
+          <button
+            onClick={() => onEdit(post)}
+            className="text-white hover:opacity-80 transition-opacity"
+            style={{
+              flex: 1,
+              padding: "9px 0",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              background: "#1F2933",
+              border: "1px solid #2f3336",
+            }}
+          >
+            Edit
+          </button>
 
-        {/* Delete */}
-        <button
-          onClick={handleDelete}
-          className="hover:opacity-80 transition-opacity"
-          style={{
-            flex: 1,
-            padding: "9px 0",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#DC2626",
-            background: "#1F2933",
-            border: "1px solid #2f3336",
-          }}
-        >
-          Delete
-        </button>
+          {/* Delete */}
+          <button
+            onClick={handleDelete}
+            className="hover:opacity-80 transition-opacity"
+            style={{
+              flex: 1,
+              padding: "9px 0",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#DC2626",
+              background: "#1F2933",
+              border: "1px solid #2f3336",
+            }}
+          >
+            Delete
+          </button>
 
-        {/* Post now */}
-        <button
-          onClick={handlePostNow}
-          className="text-white hover:opacity-90 transition-opacity"
-          style={{
-            flex: 1.4,
-            padding: "9px 0",
-            borderRadius: 8,
-            fontSize: 13,
-            fontWeight: 500,
-            background: "#1D9BF0",
-            border: "none",
-          }}
-        >
-          Post now →
-        </button>
-      </div>
+          {/* Post now */}
+          <button
+            onClick={handlePostNow}
+            className="text-white hover:opacity-90 transition-opacity"
+            style={{
+              flex: 1.4,
+              padding: "9px 0",
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              background: "#1D9BF0",
+              border: "none",
+            }}
+          >
+            Post now →
+          </button>
+        </div>
+      )}
     </div>
   );
 }

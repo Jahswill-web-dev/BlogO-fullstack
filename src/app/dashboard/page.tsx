@@ -172,11 +172,16 @@ export default function DashboardPage() {
     }
   };
 
-  const handleContentSave = (id: string, content: string) => {
+  const handleContentSave = async (id: string, content: string) => {
     setPosts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, content } : p))
     );
     setDetailPost((prev) => (prev?.id === id ? { ...prev, content } : prev));
+    try {
+      await api.updatePost(id, content);
+    } catch (err) {
+      console.error("[Dashboard] PATCH /posts/:id failed:", err);
+    }
   };
 
   const handleGenerateCarousel = async (params: {

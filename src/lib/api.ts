@@ -105,6 +105,13 @@ export const api = {
   /** Fetch all generated posts */
   getPosts: () => apiFetch<unknown>("/posts"),
 
+  /** Update a post's content */
+  updatePost: (id: string, finalPost: string) =>
+    apiFetch<{ success: boolean; data: unknown }>(`/posts/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ finalPost }),
+    }),
+
   /** Delete a post by ID */
   deletePost: (id: string) =>
     apiFetch<{ success: boolean; message: string }>(`/posts/${id}`, {
