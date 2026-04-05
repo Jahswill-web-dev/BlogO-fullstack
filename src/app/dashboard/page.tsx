@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Menu, Plus } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { api, ApiPost, UserProfile } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
@@ -21,7 +22,12 @@ import { PostDetailPopup } from "@/components/modules/PostDetailPopup";
 /*  Main Dashboard Page                                                 */
 /* ------------------------------------------------------------------ */
 export default function DashboardPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading && !user) router.replace("/signin");
+  }, [authLoading, user, router]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -320,6 +326,33 @@ export default function DashboardPage() {
             </div>
           </div>
 
+          {/* Generating banner */}
+          <AnimatePresence>
+            {isGenerating && (
+              <motion.div
+                key="generating-banner"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.25 }}
+                className="mb-6 flex items-center gap-3 px-4 py-3 rounded-xl border"
+                style={{
+                  background: "rgba(92,63,237,0.08)",
+                  borderColor: "rgba(92,63,237,0.25)",
+                }}
+              >
+                <span
+                  className="inline-block w-4 h-4 rounded-full border-2 border-t-transparent animate-spin flex-shrink-0"
+                  style={{ borderColor: "#5C3FED", borderTopColor: "transparent" }}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-white/90">Generating your posts…</p>
+                  <p className="text-xs text-white/40">This may take a moment. You can keep browsing.</p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Calendar */}
           <div>
             <CalendarCard
@@ -365,6 +398,12 @@ export default function DashboardPage() {
             onClose={handleOnboardingClose}
             onScheduleAll={handleScheduleAll}
             onDelete={handleDelete}
+            onUpdate={(id, content) => {
+              setOnboardingPosts((prev) =>
+                prev.map((p) => (p.id === id ? { ...p, content } : p))
+              );
+              handleContentSave(id, content);
+            }}
           />
         )}
       </AnimatePresence>

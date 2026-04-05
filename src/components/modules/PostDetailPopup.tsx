@@ -275,9 +275,9 @@ function PopupContent({
               edit
             </span>
           )}
-          {/* Saved confirmation */}
+          {/* Saved confirmation — visible pill badge */}
           {savedFlash && (
-            <span className="absolute top-1 right-2 flex items-center gap-1 text-[10px] text-[#22c55e] pointer-events-none select-none">
+            <span className="absolute bottom-1 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-500/15 text-green-400 border border-green-500/30 pointer-events-none select-none">
               ✓ Saved
             </span>
           )}

@@ -131,7 +131,8 @@ function PanelContent({
         borderRadius: 14,
         display: "flex",
         flexDirection: "column",
-        height: "100%",
+        flex: 1,
+        minHeight: 0,
         overflow: "hidden",
       }}
     >
@@ -176,7 +177,7 @@ function PanelContent({
       </div>
 
       {/* ---- Scrollable body ---- */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+      <div className="scrollbar-dark" style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
         {/* Section: Niche */}
         <p style={{ fontSize: 13, color: "#aaa", marginBottom: 14 }}>
           What Niche Content do you want to generate for?
@@ -464,7 +465,7 @@ export function GeneratePanel({
             padding: 16,
           }}
         >
-          <div style={{ height: "100%" }}>{sharedContent}</div>
+          <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>{sharedContent}</div>
         </motion.div>
       </div>
 
@@ -510,6 +511,9 @@ export function GeneratePanel({
               width: "100%",
               maxWidth: 420,
               maxHeight: "90vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
               pointerEvents: "auto",
             }}
           >

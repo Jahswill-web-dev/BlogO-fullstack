@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { MessageCircle, Repeat2, Heart, Trash2 } from "lucide-react";
 import { FaXTwitter } from "react-icons/fa6";
@@ -40,16 +40,43 @@ function TweetCard({
   isSelected,
   onSelect,
   onDelete,
+  onUpdate,
 }: {
   post: Post;
   user: AuthUser | null;
   isSelected: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onUpdate?: (content: string) => void;
 }) {
   const initials = user?.name?.[0]?.toUpperCase() ?? "?";
   const handle = user ? "@" + user.email.split("@")[0] : "@user";
   const displayName = user?.name ?? "HackrPost User";
+
+  const [draft, setDraft] = useState(post.content);
+  const [focused, setFocused] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const autoResize = () => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  };
+
+  useEffect(() => {
+    autoResize();
+  }, []);
+
+  const commitSave = () => {
+    const trimmed = draft.trim();
+    if (trimmed && trimmed !== post.content.trim()) {
+      onUpdate?.(draft);
+      setSavedFlash(true);
+      setTimeout(() => setSavedFlash(false), 1800);
+    }
+  };
 
   return (
     <div
@@ -71,9 +98,7 @@ function TweetCard({
       <div className="flex items-start gap-3 mb-3 pr-6">
         <div
           className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-white font-semibold text-sm"
-          style={{
-            background: "linear-gradient(135deg,#5C3FED,#B44BD6)",
-          }}
+          style={{ background: "linear-gradient(135deg,#5C3FED,#B44BD6)" }}
         >
           {initials}
         </div>
@@ -85,10 +110,40 @@ function TweetCard({
         </div>
       </div>
 
-      {/* Post body */}
-      <p className="text-white/90 text-sm leading-relaxed whitespace-pre-line mb-4">
-        {post.content}
-      </p>
+      {/* Editable post body */}
+      <div className="relative -mx-1 group">
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(e) => { setDraft(e.target.value); autoResize(); }}
+          onFocus={() => { setFocused(true); autoResize(); }}
+          onBlur={() => { setFocused(false); commitSave(); }}
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            "w-full text-white/90 bg-transparent resize-none outline-none rounded-lg px-2 py-1 transition-colors",
+            "text-sm leading-relaxed",
+            focused
+              ? "border border-[#2f3336]"
+              : "border border-transparent hover:border-[#1F2933] cursor-text"
+          )}
+          style={{ overflow: "hidden" }}
+        />
+        {/* Edit hint */}
+        {!focused && !savedFlash && (
+          <span className="absolute top-1 right-2 text-[10px] text-white/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none select-none">
+            edit
+          </span>
+        )}
+      </div>
+
+      {/* Saved flash — outside textarea container so it's never hidden behind it */}
+      <div className="h-6 flex items-center justify-end mb-1">
+        {savedFlash && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-500/15 text-green-400 border border-green-500/30 select-none">
+            ✓ Saved
+          </span>
+        )}
+      </div>
 
       {/* Action row */}
       <div className="flex items-center justify-between">
@@ -118,10 +173,7 @@ function TweetCard({
 
         {/* Delete */}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="text-red-400/50 hover:text-red-400 transition"
           aria-label="Remove post"
         >
@@ -141,6 +193,7 @@ interface OnboardingPostsModalProps {
   onClose: () => void;
   onScheduleAll: (posts: Post[]) => void;
   onDelete?: (id: string) => void;
+  onUpdate?: (id: string, content: string) => void;
 }
 
 export function OnboardingPostsModal({
@@ -149,6 +202,7 @@ export function OnboardingPostsModal({
   onClose,
   onScheduleAll,
   onDelete,
+  onUpdate,
 }: OnboardingPostsModalProps) {
   const [localPosts, setLocalPosts] = useState<Post[]>(posts);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -157,6 +211,13 @@ export function OnboardingPostsModal({
     setLocalPosts((prev) => prev.filter((p) => p.id !== id));
     if (selectedId === id) setSelectedId(null);
     onDelete?.(id);
+  };
+
+  const handleUpdate = (id: string, content: string) => {
+    setLocalPosts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, content } : p))
+    );
+    onUpdate?.(id, content);
   };
 
   const count = localPosts.length;
@@ -170,10 +231,7 @@ export function OnboardingPostsModal({
         animate="visible"
         exit="exit"
         className="fixed inset-0 z-[60] pointer-events-none"
-        style={{
-          backdropFilter: "blur(3px)",
-          background: "rgba(0,0,0,0.35)",
-        }}
+        style={{ backdropFilter: "blur(3px)", background: "rgba(0,0,0,0.35)" }}
       />
 
       {/* Positioning container */}
@@ -186,11 +244,8 @@ export function OnboardingPostsModal({
           exit="exit"
           className={cn(
             "pointer-events-auto w-full bg-[#0B0F19] flex flex-col",
-            // Mobile: full-width bottom sheet
             "rounded-t-2xl",
-            // Desktop: centered card, limited width, all rounded
             "md:rounded-2xl md:max-w-[480px] md:w-full md:mx-4",
-            // Max height safety
             "max-h-[90vh] md:max-h-[85vh]"
           )}
         >
@@ -201,18 +256,16 @@ export function OnboardingPostsModal({
                 Your posts are ready
               </h2>
               <p className="text-white/50 text-sm mt-1 leading-snug">
-                {count} posts generated — scroll to review, then post or
-                schedule
+                {count} posts generated — tap to edit, then schedule
               </p>
             </div>
-            {/* Green count badge */}
             <span className="flex-shrink-0 mt-0.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-600/20 text-green-400 border border-green-600/30 whitespace-nowrap">
               {count} posts
             </span>
           </div>
 
           {/* Scrollable tweet list */}
-          <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3 max-h-[50vh] md:max-h-[360px]">
+          <div className="scrollbar-dark overflow-y-auto flex-1 px-5 py-4 space-y-3 min-h-0">
             {count === 0 ? (
               <p className="text-white/30 text-sm text-center py-10">
                 No posts remaining.
@@ -226,6 +279,7 @@ export function OnboardingPostsModal({
                   isSelected={selectedId === post.id}
                   onSelect={() => setSelectedId(post.id)}
                   onDelete={() => handleDelete(post.id)}
+                  onUpdate={(content) => handleUpdate(post.id, content)}
                 />
               ))
             )}
