@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const BASE_OPTS: RequestInit = {
   credentials: "include",
@@ -117,6 +117,10 @@ export const api = {
     apiFetch<{ success: boolean; message: string }>(`/posts/${id}`, {
       method: "DELETE",
     }),
+
+  /** Check whether the current user has connected their X account */
+  checkXStatus: () =>
+    apiFetch<{ connected: boolean }>("/auth/x/status"),
 
   /** Post a tweet to the connected X account */
   postTweet: (text: string) =>

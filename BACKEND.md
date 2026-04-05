@@ -35,9 +35,20 @@
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
+| GET | `/auth/x/status` | JWT | Check whether the user has connected their X account |
 | GET | `/auth/x` | JWT | Initiate X OAuth 2.0 PKCE flow (redirect) |
 | GET | `/auth/x/callback` | JWT | X OAuth callback — stores encrypted tokens on user |
 | POST | `/x/tweet` | JWT | Post a tweet to the authenticated X account |
+
+**`GET /auth/x/status` response:**
+```json
+{ "connected": true }
+```
+or
+```json
+{ "connected": false }
+```
+Use this before posting a tweet. If `connected` is `false`, redirect the user to `GET /auth/x` to connect their account.
 
 **`POST /x/tweet` body:**
 ```json

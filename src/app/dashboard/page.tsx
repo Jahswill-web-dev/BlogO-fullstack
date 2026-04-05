@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Menu, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +18,7 @@ import {
 import { OnboardingPostsModal } from "@/components/modules/OnboardingPostsModal";
 import { CalendarCard } from "@/components/modules/CalendarCard";
 import { PostDetailPopup } from "@/components/modules/PostDetailPopup";
+import { ConnectXModal } from "@/components/modules/ConnectXModal";
 
 /* ------------------------------------------------------------------ */
 /*  Main Dashboard Page                                                 */
@@ -39,6 +41,7 @@ export default function DashboardPage() {
   const [showGeneratePanel, setShowGeneratePanel] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [showConnectXModal, setShowConnectXModal] = useState(false);
 
   useEffect(() => {
     const fromOnboarding =
@@ -161,6 +164,19 @@ export default function DashboardPage() {
     const post = posts.find((p) => p.id === id);
     if (!post) return;
 
+    // Check X connection status before attempting to post
+    try {
+      const { connected } = await api.checkXStatus();
+      if (!connected) {
+        setShowConnectXModal(true);
+        return;
+      }
+    } catch (err) {
+      console.error("[Dashboard] GET /auth/x/status failed:", err);
+      setShowConnectXModal(true);
+      return;
+    }
+
     // Optimistic update
     setPosts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, status: "posted" } : p))
@@ -168,13 +184,14 @@ export default function DashboardPage() {
 
     try {
       await api.postTweet(post.content);
+      toast.success("Post published to X successfully!");
     } catch (err) {
       console.error("[Dashboard] POST /x/tweet failed:", err);
       // Revert status on failure
       setPosts((prev) =>
         prev.map((p) => (p.id === id ? { ...p, status: "scheduled" } : p))
       );
-      alert("Failed to post tweet. Make sure your X account is connected.");
+      toast.error("Failed to publish post to X. Please try again.");
     }
   };
 
@@ -420,6 +437,11 @@ export default function DashboardPage() {
           />
         )}
       </AnimatePresence>
+
+      <ConnectXModal
+        isOpen={showConnectXModal}
+        onClose={() => setShowConnectXModal(false)}
+      />
     </div>
   );
 }
