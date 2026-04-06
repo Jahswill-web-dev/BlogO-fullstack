@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
-import { X, Minus, Plus } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { X, Minus, Plus, ChevronLeft } from "lucide-react";
 import { FIXED_NICHES } from "@/lib/niches";
 
 /* ------------------------------------------------------------------ */
@@ -47,9 +47,9 @@ const mobileVariants = {
 /*  Constants                                                           */
 /* ------------------------------------------------------------------ */
 
-const MIN_SLIDES = 3;
+const MIN_SLIDES = 1;
 const MAX_SLIDES = 15;
-const PRESET_SLIDES = [5, 7, 10];
+const PRESET_SLIDES = [4, 7, 12];
 
 /* ------------------------------------------------------------------ */
 /*  Shared pill styles                                                  */
@@ -95,6 +95,7 @@ function PanelContent({
     return niche?.focusAreas[0] ?? "";
   });
   const [slideCount, setSlideCount] = useState(7);
+  const [showAllFocus, setShowAllFocus] = useState(false);
 
   // Re-initialise whenever the panel (re-)opens with a potentially different userNiche
   useEffect(() => {
@@ -102,12 +103,14 @@ function PanelContent({
     const niche = FIXED_NICHES.find((n) => n.name === userNiche);
     setSelectedFocus(niche?.focusAreas[0] ?? "");
     setSlideCount(7);
+    setShowAllFocus(false);
   }, [userNiche]);
 
   const handleNicheSelect = (nicheName: string) => {
     setSelectedNiche(nicheName);
     const niche = FIXED_NICHES.find((n) => n.name === nicheName);
     setSelectedFocus(niche?.focusAreas[0] ?? "");
+    setShowAllFocus(false);
   };
 
   const decrement = () => setSlideCount((c) => Math.max(MIN_SLIDES, c - 1));
@@ -134,6 +137,7 @@ function PanelContent({
         flex: 1,
         minHeight: 0,
         overflow: "hidden",
+        position: "relative",
       }}
     >
       {/* ---- Header ---- */}
@@ -148,7 +152,7 @@ function PanelContent({
         }}
       >
         <span style={{ color: "#fff", fontWeight: 600, fontSize: 15 }}>
-          Create carousel post
+          Create niche post
         </span>
         <button
           onClick={onClose}
@@ -234,15 +238,8 @@ function PanelContent({
               <strong style={{ color: "#fff" }}>{selectedNiche}</strong> do you
               want to focus on?
             </p>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 8,
-                marginBottom: 24,
-              }}
-            >
-              {currentFocusAreas.map((area) => (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+              {currentFocusAreas.slice(0, 4).map((area) => (
                 <button
                   key={area}
                   onClick={() => setSelectedFocus(area)}
@@ -252,6 +249,25 @@ function PanelContent({
                 </button>
               ))}
             </div>
+
+            {/* View all link */}
+            <button
+              onClick={() => setShowAllFocus(true)}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                marginBottom: 24,
+                fontSize: 12,
+                color: "#9d8ee8",
+                cursor: "pointer",
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+                display: "block",
+              }}
+            >
+              View all ({currentFocusAreas.length})
+            </button>
 
             {/* Divider */}
             <div style={{ borderTop: "1px solid #1e1e2a", marginBottom: 20 }} />
@@ -391,6 +407,130 @@ function PanelContent({
           {isGenerating ? "Generating…" : "Generate →"}
         </button>
       </div>
+
+      {/* ---- Focus area full-panel overlay ---- */}
+      <AnimatePresence>
+        {showAllFocus && (
+          <motion.div
+            key="focus-overlay"
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 32, stiffness: 300 }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "#13131a",
+              borderRadius: 14,
+              display: "flex",
+              flexDirection: "column",
+              zIndex: 10,
+            }}
+          >
+            {/* Overlay header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "16px 20px",
+                borderBottom: "1px solid #1e1e2a",
+                flexShrink: 0,
+              }}
+            >
+              <button
+                onClick={() => setShowAllFocus(false)}
+                style={{
+                  width: 26,
+                  height: 26,
+                  background: "#1e1e2a",
+                  border: "1px solid #2a2a3a",
+                  borderRadius: 6,
+                  color: "#aaa",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLButtonElement).style.color = "#fff")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLButtonElement).style.color = "#aaa")
+                }
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <div style={{ minWidth: 0 }}>
+                <p style={{ fontSize: 13, color: "#fff", fontWeight: 600, margin: 0 }}>
+                  {selectedNiche}
+                </p>
+                <p style={{ fontSize: 11, color: "#555", margin: 0 }}>
+                  {currentFocusAreas.length} focus areas
+                </p>
+              </div>
+            </div>
+
+            {/* Overlay scrollable list */}
+            <div
+              className="scrollbar-dark"
+              style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {currentFocusAreas.map((area) => (
+                  <button
+                    key={area}
+                    onClick={() => {
+                      setSelectedFocus(area);
+                      setShowAllFocus(false);
+                    }}
+                    style={{
+                      background: selectedFocus === area ? "#2d2650" : "#1e1e2a",
+                      border: `1px solid ${selectedFocus === area ? "#9d8ee8" : "#2e2e3e"}`,
+                      color: selectedFocus === area ? "#d6ccff" : "#ccc",
+                      borderRadius: 8,
+                      padding: "10px 14px",
+                      fontSize: 13,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "border-color 0.15s, background 0.15s, color 0.15s",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedFocus !== area) {
+                        (e.currentTarget as HTMLButtonElement).style.background = "#232333";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#3e3e5e";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedFocus !== area) {
+                        (e.currentTarget as HTMLButtonElement).style.background = "#1e1e2a";
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#2e2e3e";
+                      }
+                    }}
+                  >
+                    <span>{area}</span>
+                    {selectedFocus === area && (
+                      <span
+                        style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: 999,
+                          background: "#9d8ee8",
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

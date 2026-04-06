@@ -61,6 +61,18 @@ export type ApiPost = {
   finalPost: string;
   status?: string;
   scheduledDate?: string;
+  meta?: Record<string, unknown>;
+};
+
+/** Returned by GET /api/posts/scheduled and POST /api/posts/schedule */
+export type ScheduledApiPost = {
+  _id: string;
+  content: string;
+  status: "pending" | "posted" | "failed" | "cancelled";
+  scheduledAt: string;
+  postedAt: string | null;
+  batchId: string | null;
+  platform: string;
 };
 
 // ------------------------------------------------------------------ //
@@ -105,11 +117,11 @@ export const api = {
   /** Fetch all generated posts */
   getPosts: () => apiFetch<unknown>("/posts"),
 
-  /** Update a post's content */
-  updatePost: (id: string, finalPost: string) =>
+  /** Update a post's content and/or meta */
+  updatePost: (id: string, fields: { finalPost?: string; meta?: Record<string, unknown> }) =>
     apiFetch<{ success: boolean; data: unknown }>(`/posts/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ finalPost }),
+      body: JSON.stringify(fields),
     }),
 
   /** Delete a post by ID */
@@ -127,6 +139,44 @@ export const api = {
     apiFetch<{ data: { id: string; text: string } }>("/x/tweet", {
       method: "POST",
       body: JSON.stringify({ text }),
+    }),
+
+  /** Schedule a single post for a specific date/time */
+  schedulePost: (content: string, scheduled_at: string) =>
+    apiFetch<{ success: boolean; post: ScheduledApiPost }>("/api/posts/schedule", {
+      method: "POST",
+      body: JSON.stringify({ content, scheduled_at }),
+    }),
+
+  /** Bulk-schedule multiple posts with automatic time spacing */
+  scheduleBulkPosts: (
+    posts: { content: string }[],
+    start_time: string,
+    frequency_hours: number
+  ) =>
+    apiFetch<{ success: boolean; posts: ScheduledApiPost[] }>("/api/posts/schedule/bulk", {
+      method: "POST",
+      body: JSON.stringify({ posts, start_time, frequency_hours }),
+    }),
+
+  /** List all scheduled posts for the current user */
+  getScheduledPosts: () =>
+    apiFetch<{ success: boolean; posts: ScheduledApiPost[] }>("/api/posts/scheduled"),
+
+  /** Cancel a pending scheduled post */
+  cancelScheduledPost: (id: string) =>
+    apiFetch<{ success: boolean; message: string }>(`/api/posts/scheduled/${id}`, {
+      method: "DELETE",
+    }),
+
+  /** Edit content or scheduled time of a pending post */
+  updateScheduledPost: (
+    id: string,
+    body: { content?: string; scheduled_at?: string }
+  ) =>
+    apiFetch<{ success: boolean; post: ScheduledApiPost }>(`/api/posts/scheduled/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
     }),
 
   logout: () => apiFetch<void>("/auth/logout"),

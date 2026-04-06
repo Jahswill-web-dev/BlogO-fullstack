@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, CalendarDays, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Post, dayKey } from "@/components/modules/EditScheduleModal";
 import { AutoSchedulePopover } from "@/components/modules/AutoSchedulePopover";
@@ -118,9 +118,11 @@ interface CalendarCardProps {
   posts: Post[];
   onPostClick: (post: Post) => void;
   onBulkSchedule: (scheduledPosts: Post[]) => void;
+  onGenerateClick: () => void;
+  onDayClick: (day: Date, posts: Post[]) => void;
 }
 
-export function CalendarCard({ posts, onPostClick, onBulkSchedule }: CalendarCardProps) {
+export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateClick, onDayClick }: CalendarCardProps) {
   const today = useMemo(() => new Date(), []);
   const todayKey = useMemo(() => dayKey(today), [today]);
 
@@ -129,7 +131,6 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule }: CalendarCar
     getWeekNumberForDate(new Date())
   );
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [autoScheduleOpen, setAutoScheduleOpen] = useState(false);
   const autoScheduleRef = useRef<HTMLDivElement>(null);
 
@@ -174,7 +175,8 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule }: CalendarCar
 
   const handleDayClick = (day: Date) => {
     setSelectedDay(day);
-    setMobileSheetOpen(true);
+    const key = dayKey(day);
+    onDayClick(day, postsByDay[key] ?? []);
   };
 
   /* Close auto-schedule popover on outside click or Escape */
@@ -407,13 +409,21 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule }: CalendarCar
           </div>
 
           {/* Scrollable post list */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          <div className="scrollbar-calendar flex-1 overflow-y-auto p-3 space-y-1">
             {selectedDayPosts.length === 0 ? (
-              <p className="text-white/20 text-[11px] text-center pt-6 leading-relaxed">
-                No posts for this day.
-                <br />
-                Click a day to preview.
-              </p>
+              <div className="flex flex-col items-center justify-center pt-5 pb-3 gap-3">
+                <p className="text-white/20 text-[11px] text-center leading-relaxed">
+                  No posts for this day.
+                </p>
+                <button
+                  onClick={onGenerateClick}
+                  className="flex items-center gap-1.5 text-white text-[11px] font-medium px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+                  style={{ background: "#5C3FED" }}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Generate posts
+                </button>
+              </div>
             ) : selectedDayPosts.length >= 8 ? (
               selectedDayPosts.map((post) => (
                 <CompactPostCard
@@ -434,92 +444,6 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule }: CalendarCar
           </div>
         </div>
       </div>
-
-      {/* ── Mobile bottom sheet ── */}
-      <AnimatePresence>
-        {mobileSheetOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              key="cal-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setMobileSheetOpen(false)}
-              className="md:hidden fixed inset-0 z-40 bg-black/50"
-            />
-
-            {/* Sheet */}
-            <motion.div
-              key="cal-sheet"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 32, stiffness: 320 }}
-              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0B0F19] border-t border-x border-[#1F2933] rounded-t-2xl"
-              style={{ maxHeight: "70vh" }}
-            >
-              {/* Drag handle */}
-              <div className="flex justify-center pt-3 pb-2">
-                <div className="w-8 h-1 rounded-full bg-[#1F2933]" />
-              </div>
-
-              {/* Sheet header */}
-              <div className="px-4 pb-3 border-b border-[#1F2933]">
-                <p className="text-white font-semibold text-sm">
-                  {selectedDay.toLocaleDateString(undefined, {
-                    weekday: "long",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </p>
-                <p className="text-white/40 text-xs mt-0.5">
-                  {selectedDayPosts.length === 0
-                    ? "No posts scheduled"
-                    : `${selectedDayPosts.length} post${
-                        selectedDayPosts.length !== 1 ? "s" : ""
-                      } scheduled`}
-                </p>
-              </div>
-
-              {/* Post cards */}
-              <div
-                className="overflow-y-auto p-3 space-y-1"
-                style={{ maxHeight: "calc(70vh - 100px)" }}
-              >
-                {selectedDayPosts.length === 0 ? (
-                  <p className="text-white/20 text-xs text-center py-8">
-                    No posts for this day.
-                  </p>
-                ) : selectedDayPosts.length >= 8 ? (
-                  selectedDayPosts.map((post) => (
-                    <CompactPostCard
-                      key={post.id}
-                      post={post}
-                      onClick={() => {
-                        setMobileSheetOpen(false);
-                        onPostClick(post);
-                      }}
-                    />
-                  ))
-                ) : (
-                  selectedDayPosts.map((post) => (
-                    <PanelPostCard
-                      key={post.id}
-                      post={post}
-                      onClick={() => {
-                        setMobileSheetOpen(false);
-                        onPostClick(post);
-                      }}
-                    />
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
 
       {/* ── Mobile: Auto-schedule bottom sheet ── */}
       <AnimatePresence>

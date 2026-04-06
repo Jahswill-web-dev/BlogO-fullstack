@@ -22,6 +22,7 @@ export type Post = {
   platform: "Twitter";
   status: "draft" | "scheduled" | "posted";
   scheduledDate?: Date;
+  scheduledPostId?: string;
 };
 
 export const FREQUENCIES = [

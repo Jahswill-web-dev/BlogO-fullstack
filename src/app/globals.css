@@ -139,6 +139,26 @@
   }
 }
 
+/* ── Calendar side-panel scrollbar ── */
+.scrollbar-calendar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(29, 155, 240, 0.25) transparent;
+}
+.scrollbar-calendar::-webkit-scrollbar {
+  width: 3px;
+}
+.scrollbar-calendar::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 6px;
+}
+.scrollbar-calendar::-webkit-scrollbar-thumb {
+  background: rgba(29, 155, 240, 0.25);
+  border-radius: 99px;
+}
+.scrollbar-calendar::-webkit-scrollbar-thumb:hover {
+  background: rgba(29, 155, 240, 0.55);
+}
+
 /* ── Styled scrollbar for PostDetailPopup ── */
 .scrollbar-popup {
   scrollbar-width: thin;

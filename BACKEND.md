@@ -310,6 +310,257 @@ Returns `403` if the post belongs to a different user, `404` if not found.
 
 ---
 
+## Scheduled Posts
+
+Mounted at `/api/posts`. All endpoints require JWT auth. X account must be connected via `GET /auth/x` before any scheduled post can be published.
+
+### Endpoints
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/posts/schedule` | JWT | Schedule a single post for a specific date and time |
+| POST | `/api/posts/schedule/bulk` | JWT | Schedule multiple posts with a start time and posting frequency |
+| GET | `/api/posts/scheduled` | JWT | List all scheduled posts for the current user |
+| DELETE | `/api/posts/scheduled/:id` | JWT | Cancel a pending scheduled post |
+| PATCH | `/api/posts/scheduled/:id` | JWT | Edit the content or scheduled time of a pending post |
+
+---
+
+### `POST /api/posts/schedule`
+
+Schedule a single post to be published at a specific time.
+
+**Body:**
+```json
+{
+  "content": "Your tweet text here (max 280 chars)",
+  "scheduled_at": "2026-04-06T09:00:00.000Z",
+  "media_urls": ["https://example.com/image.png"]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `content` | `string` | Yes | Tweet text. Must be non-empty and ≤ 280 characters |
+| `scheduled_at` | `ISO 8601 string` | Yes | UTC datetime to publish. Must be in the future |
+| `media_urls` | `string[]` | No | Optional list of media URLs to attach |
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "post": {
+    "_id": "664a1b2c...",
+    "userId": "663f...",
+    "content": "Your tweet text here",
+    "mediaUrls": [],
+    "platform": "x",
+    "status": "pending",
+    "scheduledAt": "2026-04-06T09:00:00.000Z",
+    "jobId": "bullmq-job-id",
+    "batchId": null,
+    "postedAt": null,
+    "errorMessage": null,
+    "createdAt": "2026-04-05T12:00:00.000Z",
+    "updatedAt": "2026-04-05T12:00:00.000Z"
+  }
+}
+```
+
+**Errors:**
+- `400` — `content` missing / empty / over 280 chars, or `scheduled_at` missing / not a future date
+- `500` — failed to queue job
+
+---
+
+### `POST /api/posts/schedule/bulk`
+
+Schedule multiple posts with automatic time spacing. All posts in a bulk request share the same `batchId`.
+
+**Body:**
+```json
+{
+  "posts": [
+    { "content": "First tweet" },
+    { "content": "Second tweet", "media_urls": ["https://example.com/img.png"] },
+    { "content": "Third tweet" }
+  ],
+  "start_time": "2026-04-06T09:00:00.000Z",
+  "frequency_hours": 4
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `posts` | `object[]` | Yes | Array of post objects. Must have at least 1 item |
+| `posts[].content` | `string` | Yes | Tweet text per post. Max 280 characters |
+| `posts[].media_urls` | `string[]` | No | Optional media URLs for that post |
+| `start_time` | `ISO 8601 string` | Yes | UTC datetime for the first post. Must be in the future |
+| `frequency_hours` | `number` | Yes | Hours between consecutive posts. Must be > 0 |
+
+**How scheduling works:**
+
+`scheduledAt` for each post = `start_time + (index × frequency_hours × 3600 seconds)`
+
+| Index | `start_time` | `frequency_hours` | `scheduledAt` |
+|-------|-------------|-------------------|---------------|
+| 0 | `09:00` | 4 | `09:00` |
+| 1 | `09:00` | 4 | `13:00` |
+| 2 | `09:00` | 4 | `17:00` |
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "posts": [
+    {
+      "_id": "...",
+      "content": "First tweet",
+      "status": "pending",
+      "scheduledAt": "2026-04-06T09:00:00.000Z",
+      "batchId": "550e8400-e29b-41d4-a716-446655440000",
+      "jobId": "...",
+      ...
+    },
+    { ... },
+    { ... }
+  ]
+}
+```
+
+**Errors:**
+- `400` — `posts` empty or missing, any post content invalid, `start_time` not future, `frequency_hours` ≤ 0
+
+---
+
+### `GET /api/posts/scheduled`
+
+Returns all scheduled posts for the authenticated user, sorted by `scheduledAt` ascending.
+
+**Query params (all optional):**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `status` | `string` | Filter by status: `pending`, `posted`, `failed`, or `cancelled` |
+
+**Example:** `GET /api/posts/scheduled?status=pending`
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "posts": [
+    {
+      "_id": "...",
+      "content": "...",
+      "status": "pending",
+      "scheduledAt": "2026-04-06T09:00:00.000Z",
+      "postedAt": null,
+      "batchId": null,
+      "platform": "x",
+      ...
+    }
+  ]
+}
+```
+
+---
+
+### `DELETE /api/posts/scheduled/:id`
+
+Cancel a pending scheduled post. Removes the job from the BullMQ queue and sets status to `cancelled`.
+
+**Only posts with `status: "pending"` can be cancelled.**
+
+**Response `200`:**
+```json
+{ "success": true, "message": "Post cancelled" }
+```
+
+**Errors:**
+- `400` — post is not in `pending` status
+- `403` — post belongs to a different user
+- `404` — post not found
+
+---
+
+### `PATCH /api/posts/scheduled/:id`
+
+Edit the content or scheduled time of a pending post. The old BullMQ job is removed and a new one is queued with the updated delay.
+
+**Only posts with `status: "pending"` can be edited.**
+
+**Body (all fields optional — send only what you want to change):**
+```json
+{
+  "content": "Updated tweet text",
+  "scheduled_at": "2026-04-07T10:00:00.000Z",
+  "media_urls": ["https://example.com/new-image.png"]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `content` | `string` | Updated tweet text. Must be non-empty and ≤ 280 characters |
+| `scheduled_at` | `ISO 8601 string` | New scheduled time. Must be in the future |
+| `media_urls` | `string[]` | Replacement media URL list |
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "post": {
+    "_id": "...",
+    "content": "Updated tweet text",
+    "status": "pending",
+    "scheduledAt": "2026-04-07T10:00:00.000Z",
+    "jobId": "new-bullmq-job-id",
+    ...
+  }
+}
+```
+
+**Errors:**
+- `400` — `content` over 280 chars / empty, `scheduled_at` not future, or post is not `pending`
+- `403` — post belongs to a different user
+- `404` — post not found
+
+---
+
+### Scheduled post object shape
+
+```json
+{
+  "_id": "664a1b2c3d4e5f6789abcdef",
+  "userId": "663f1a2b3c4d5e6f78901234",
+  "content": "Tweet text to be published",
+  "mediaUrls": [],
+  "platform": "x",
+  "status": "pending",
+  "scheduledAt": "2026-04-06T09:00:00.000Z",
+  "postedAt": null,
+  "errorMessage": null,
+  "batchId": "550e8400-e29b-41d4-a716-446655440000",
+  "jobId": "1",
+  "createdAt": "2026-04-05T12:00:00.000Z",
+  "updatedAt": "2026-04-05T12:00:00.000Z"
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `status` | `pending` → waiting to fire; `posted` → published to X; `failed` → all retries exhausted; `cancelled` → manually cancelled |
+| `batchId` | UUID shared by all posts from the same bulk schedule request. `null` for single posts |
+| `jobId` | Internal BullMQ job ID. Used for job cancellation/rescheduling — not needed by clients |
+| `postedAt` | Set when the worker successfully publishes the post |
+| `errorMessage` | Set when all 3 retry attempts fail. Contains the last error message |
+
+### How the worker handles failures
+
+The BullMQ worker retries failed posts up to **3 times** with **exponential backoff** (5 s → 25 s → 125 s). Status stays `pending` during retries. Only after all attempts are exhausted does the status change to `failed` and `errorMessage` get populated.
+
+---
+
 ## Focus Areas (Onboarding Helper)
 
 | Method | Endpoint | Auth | Description |
@@ -360,3 +611,5 @@ All endpoints return JSON errors in one of two shapes:
 - **CORS:** Set `FRONTEND_URL` in `.env` to your frontend origin (e.g. `http://localhost:3000`).
 - **Swagger UI:** Full interactive docs at `http://localhost:4000/docs`.
 - **Test UI:** Manual request tool at `http://localhost:4000/test-ui`.
+- **Scheduler:** BullMQ backed by Upstash Redis (`REDIS_URL` env var). The worker starts automatically with the server. Posts must be scheduled at least a few seconds in the future — the delay is computed as `scheduledAt - Date.now()` at the moment of scheduling.
+- **X account required for publishing:** Scheduling a post succeeds even if no X account is connected, but the worker will fail when it tries to publish. Connect X first via `GET /auth/x`.

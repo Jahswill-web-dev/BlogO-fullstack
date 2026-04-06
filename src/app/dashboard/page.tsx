@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Menu, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
-import { api, ApiPost, UserProfile } from "@/lib/api";
+import { api, ApiPost, UserProfile, ScheduledApiPost } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { GeneratePanel } from "@/components/GeneratePanel";
 import { DashboardSidebar } from "@/components/modules/DashboardSidebar";
@@ -19,6 +19,7 @@ import { OnboardingPostsModal } from "@/components/modules/OnboardingPostsModal"
 import { CalendarCard } from "@/components/modules/CalendarCard";
 import { PostDetailPopup } from "@/components/modules/PostDetailPopup";
 import { ConnectXModal } from "@/components/modules/ConnectXModal";
+import { DayPostsPopup } from "@/components/modules/DayPostsPopup";
 
 /* ------------------------------------------------------------------ */
 /*  Main Dashboard Page                                                 */
@@ -42,42 +43,70 @@ export default function DashboardPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showConnectXModal, setShowConnectXModal] = useState(false);
+  const [dayPopupDate, setDayPopupDate] = useState<Date | null>(null);
 
   useEffect(() => {
     const fromOnboarding =
       new URLSearchParams(window.location.search).get("schedule") === "true";
 
-    api
-      .getPosts()
-      .then((raw) => {
-        console.log("[Dashboard] GET /posts raw response:", JSON.stringify(raw));
-        // Unwrap if the backend returns { posts: [...] } or { data: [...] }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const apiPosts = Array.isArray(raw)
-          ? raw
-          : ((raw as any)?.posts ?? (raw as any)?.data ?? []);
-        console.log("[Dashboard] GET /posts response:", apiPosts);
+    const today9am = new Date();
+    today9am.setHours(9, 0, 0, 0);
 
-        if (!apiPosts || apiPosts.length === 0) {
-          setPostsLoading(false);
-          return;
+    Promise.allSettled([api.getPosts(), api.getScheduledPosts()]).then(
+      ([crudResult, scheduledResult]) => {
+        // ── CRUD posts (drafts) ──────────────────────────────────────────
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let crudRaw: any[] = [];
+        if (crudResult.status === "fulfilled") {
+          const raw = crudResult.value;
+          crudRaw = Array.isArray(raw)
+            ? raw
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            : ((raw as any)?.posts ?? (raw as any)?.data ?? []);
+        } else {
+          console.error("[Dashboard] GET /posts failed:", crudResult.reason);
         }
 
-        const today9am = new Date();
-        today9am.setHours(9, 0, 0, 0);
+        // Skip CRUD posts that have already been handed off to the scheduler
+        const crudPosts: Post[] = crudRaw
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((p: any) => !p.meta?.scheduled)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((p: any) => ({
+            id: p._id,
+            content: p.finalPost,
+            platform: "Twitter" as const,
+            status: (p.status as Post["status"]) ?? "draft",
+            scheduledDate: p.scheduledDate
+              ? new Date(p.scheduledDate)
+              : new Date(today9am),
+          }));
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const fetched: Post[] = apiPosts.map((p: any) => ({
-          id: p._id,
-          content: p.finalPost,
-          platform: "Twitter",
-          status: (p.status as Post["status"]) ?? "draft",
-          scheduledDate: p.scheduledDate
-            ? new Date(p.scheduledDate)
-            : new Date(today9am),
-        }));
+        // ── Scheduled API posts ──────────────────────────────────────────
+        let scheduledApiPosts: Post[] = [];
+        if (scheduledResult.status === "fulfilled") {
+          scheduledApiPosts = scheduledResult.value.posts
+            .filter((p: ScheduledApiPost) => p.status !== "cancelled" && p.status !== "failed")
+            .map((p: ScheduledApiPost) => ({
+              id: p._id,
+              content: p.content,
+              platform: "Twitter" as const,
+              status:
+                p.status === "pending"
+                  ? ("scheduled" as const)
+                  : ("posted" as const),
+              scheduledDate: new Date(p.scheduledAt),
+              scheduledPostId: p._id,
+            }));
+        } else {
+          console.error(
+            "[Dashboard] GET /api/posts/scheduled failed:",
+            scheduledResult.reason
+          );
+        }
 
-        console.log("[Dashboard] Mapped posts:", fetched);
+        const fetched = [...crudPosts, ...scheduledApiPosts];
+        console.log("[Dashboard] Merged posts:", fetched);
         setPosts(fetched);
         setPostsLoading(false);
 
@@ -87,13 +116,10 @@ export default function DashboardPage() {
         ) {
           setAutoSchedule(true);
           setShowOnboardingModal(true);
-          setOnboardingPosts(fetched);
+          setOnboardingPosts(crudPosts);
         }
-      })
-      .catch((err) => {
-        console.error("[Dashboard] GET /posts failed:", err);
-        setPostsLoading(false);
-      });
+      }
+    );
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -152,11 +178,20 @@ export default function DashboardPage() {
   };
 
   const handleDelete = async (id: string) => {
+    const post = posts.find((p) => p.id === id);
     setPosts((prev) => prev.filter((p) => p.id !== id));
     try {
-      await api.deletePost(id);
+      if (post?.scheduledPostId) {
+        await api.cancelScheduledPost(post.scheduledPostId);
+        // If the post was originally a CRUD draft, un-mark it so it reappears as a draft
+        if (post.id !== post.scheduledPostId) {
+          await api.updatePost(post.id, { meta: { scheduled: false, scheduledPostId: null } });
+        }
+      } else {
+        await api.deletePost(id);
+      }
     } catch (err) {
-      console.error("[Dashboard] DELETE /posts/:id failed:", err);
+      console.error("[Dashboard] DELETE failed:", err);
     }
   };
 
@@ -196,14 +231,20 @@ export default function DashboardPage() {
   };
 
   const handleContentSave = async (id: string, content: string) => {
+    const post = posts.find((p) => p.id === id);
     setPosts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, content } : p))
     );
     setDetailPost((prev) => (prev?.id === id ? { ...prev, content } : prev));
     try {
-      await api.updatePost(id, content);
+      if (post?.scheduledPostId && post.id === post.scheduledPostId) {
+        // Post came from the scheduled API — update via scheduled endpoint
+        await api.updateScheduledPost(post.scheduledPostId, { content });
+      } else {
+        await api.updatePost(id, { finalPost: content });
+      }
     } catch (err) {
-      console.error("[Dashboard] PATCH /posts/:id failed:", err);
+      console.error("[Dashboard] Content save failed:", err);
     }
   };
 
@@ -241,16 +282,73 @@ export default function DashboardPage() {
     }
   };
 
-  const handleBulkSchedule = (scheduledPosts: Post[]) => {
+  const handleBulkSchedule = async (scheduledPosts: Post[]) => {
+    if (scheduledPosts.length === 0) return;
+
+    // Optimistic update
     setPosts((prev) =>
       prev.map((p) => {
         const updated = scheduledPosts.find((s) => s.id === p.id);
         return updated ?? p;
       })
     );
+
+    const startTime = scheduledPosts[0].scheduledDate!.toISOString();
+    const frequencyHours =
+      scheduledPosts.length > 1
+        ? (scheduledPosts[1].scheduledDate!.getTime() -
+            scheduledPosts[0].scheduledDate!.getTime()) /
+          3_600_000
+        : 1;
+
+    try {
+      const result = await api.scheduleBulkPosts(
+        scheduledPosts.map((p) => ({ content: p.content })),
+        startTime,
+        frequencyHours
+      );
+
+      const idMap = new Map(
+        result.posts.map((rp, i) => [scheduledPosts[i]?.id, rp._id])
+      );
+
+      // Mark each CRUD post as scheduled in the backend (non-blocking)
+      scheduledPosts.forEach((p, i) => {
+        const scheduledPostId = result.posts[i]?._id;
+        if (scheduledPostId) {
+          api
+            .updatePost(p.id, { meta: { scheduled: true, scheduledPostId } })
+            .catch(() => {});
+        }
+      });
+
+      setPosts((prev) =>
+        prev.map((p) =>
+          idMap.has(p.id) ? { ...p, scheduledPostId: idMap.get(p.id) } : p
+        )
+      );
+      toast.success(
+        `${scheduledPosts.length} post${scheduledPosts.length !== 1 ? "s" : ""} scheduled!`
+      );
+    } catch (err) {
+      console.error("[Dashboard] Bulk schedule failed:", err);
+      const ids = new Set(scheduledPosts.map((p) => p.id));
+      setPosts((prev) =>
+        prev.map((p) =>
+          ids.has(p.id)
+            ? { ...p, status: "draft" as const, scheduledDate: undefined }
+            : p
+        )
+      );
+      toast.error("Failed to schedule posts. Please try again.");
+    }
   };
 
-  const handleSave = (id: string, content: string, date: Date) => {
+  const handleSave = async (id: string, content: string, date: Date) => {
+    const post = posts.find((p) => p.id === id);
+    if (!post) return;
+
+    // Optimistic update
     setPosts((prev) =>
       prev.map((p) =>
         p.id === id
@@ -258,6 +356,40 @@ export default function DashboardPage() {
           : p
       )
     );
+
+    try {
+      if (post.scheduledPostId) {
+        // Reschedule an already-scheduled post
+        await api.updateScheduledPost(post.scheduledPostId, {
+          content,
+          scheduled_at: date.toISOString(),
+        });
+      } else {
+        // Schedule a draft for the first time
+        const result = await api.schedulePost(content, date.toISOString());
+        const scheduledPostId = result.post._id;
+        // Mark the CRUD post so it doesn't reappear as a draft on refresh
+        await api.updatePost(id, {
+          finalPost: content,
+          meta: { scheduled: true, scheduledPostId },
+        });
+        setPosts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, scheduledPostId } : p))
+        );
+      }
+      toast.success("Post scheduled!");
+    } catch (err) {
+      console.error("[Dashboard] Schedule post failed:", err);
+      // Revert optimistic update
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, status: post.status, scheduledDate: post.scheduledDate }
+            : p
+        )
+      );
+      toast.error("Failed to schedule post. Please try again.");
+    }
   };
 
   const selectedDayPosts = selectedPost?.scheduledDate
@@ -376,6 +508,8 @@ export default function DashboardPage() {
               posts={posts}
               onPostClick={handlePostClick}
               onBulkSchedule={handleBulkSchedule}
+              onGenerateClick={() => setShowGeneratePanel(true)}
+              onDayClick={(day) => setDayPopupDate(day)}
             />
           </div>
         </div>
@@ -434,6 +568,26 @@ export default function DashboardPage() {
             userNiche={userProfile?.userNiche ?? ""}
             onGenerate={handleGenerateCarousel}
             isGenerating={isGenerating}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {dayPopupDate && (
+          <DayPostsPopup
+            key="day-posts-popup"
+            day={dayPopupDate}
+            posts={postsByDay[dayKey(dayPopupDate)] ?? []}
+            user={user}
+            onClose={() => setDayPopupDate(null)}
+            onPostClick={(post) => {
+              setDayPopupDate(null);
+              setDetailPost(post);
+            }}
+            onGenerateClick={() => {
+              setDayPopupDate(null);
+              setShowGeneratePanel(true);
+            }}
           />
         )}
       </AnimatePresence>
