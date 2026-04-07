@@ -188,4 +188,44 @@ export const api = {
     }),
 
   logout: () => apiFetch<void>("/auth/logout"),
+
+  /** Get the user's current plan, limits, and today's usage */
+  getUserPlan: () =>
+    apiFetch<{
+      plan: "creator" | "builder" | "authority";
+      postsPerDay: number;
+      scheduleDaysAhead: number;
+      usedToday: number;
+      remainingToday: number;
+    }>("/api/user/plan"),
+
+  /** Get per-date generation usage for a list of ISO date strings */
+  getGenerationStatus: (dates: string[]) =>
+    apiFetch<{
+      success: boolean;
+      dates: {
+        date: string;
+        used: number;
+        limit: number;
+        remaining: number;
+        withinWindow: boolean;
+      }[];
+    }>(
+      `/api/generation-status?${dates.map((d) => `dates[]=${encodeURIComponent(d)}`).join("&")}`
+    ),
+
+  /** Generate posts with plan limit enforcement (new endpoint) */
+  generatePost: (body: {
+    niche: string;
+    focusAreas: string[];
+    count: number;
+    scheduledFor: string;
+  }) =>
+    apiFetch<{ success: boolean; posts: unknown[]; remaining: number }>(
+      "/api/generate-post",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    ),
 };

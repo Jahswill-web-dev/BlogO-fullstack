@@ -2,12 +2,31 @@
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Minus, Plus, ChevronLeft } from "lucide-react";
+import { X, Minus, Plus, ChevronLeft, AlertTriangle } from "lucide-react";
 import { FIXED_NICHES } from "@/lib/niches";
+import { api } from "@/lib/api";
+import { PlanUsageBar } from "./PlanUsageBar";
+import { ScheduleDatePicker } from "./ScheduleDatePicker";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */
 /* ------------------------------------------------------------------ */
+
+type PlanKey = "creator" | "builder" | "authority";
+
+interface PlanData {
+  plan: PlanKey;
+  postsPerDay: number;
+  scheduleDaysAhead: number;
+  usedToday: number;
+  remainingToday: number;
+}
+
+interface DateUsage {
+  used: number;
+  limit: number;
+  withinWindow: boolean;
+}
 
 interface GeneratePanelProps {
   isOpen: boolean;
@@ -19,8 +38,23 @@ interface GeneratePanelProps {
     niche: string;
     focusArea: string;
     slideCount: number;
-  }) => void;
+    scheduledFor: Date;
+  }) => Promise<void>;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                             */
+/* ------------------------------------------------------------------ */
+
+function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+const PLAN_DISPLAY_NAMES: Record<PlanKey, string> = {
+  creator: "Creator",
+  builder: "Builder",
+  authority: "Authority",
+};
 
 /* ------------------------------------------------------------------ */
 /*  Animation variants                                                  */
@@ -84,12 +118,20 @@ function PanelContent({
   userNiche,
   onGenerate,
   isGenerating,
-  targetDate,
+  planData,
+  usageByDate,
+  selectedScheduleDate,
+  onDateSelect,
+  onUsageUpdate,
 }: {
   onClose: () => void;
   userNiche: string;
   isGenerating?: boolean;
-  targetDate?: Date;
+  planData: PlanData | null;
+  usageByDate: Record<string, DateUsage>;
+  selectedScheduleDate: Date;
+  onDateSelect: (date: Date) => void;
+  onUsageUpdate: (date: Date) => void;
   onGenerate: GeneratePanelProps["onGenerate"];
 }) {
   const [selectedNiche, setSelectedNiche] = useState(userNiche);
@@ -99,6 +141,7 @@ function PanelContent({
   });
   const [slideCount, setSlideCount] = useState(7);
   const [showAllFocus, setShowAllFocus] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   // Re-initialise whenever the panel (re-)opens with a potentially different userNiche
   useEffect(() => {
@@ -107,6 +150,7 @@ function PanelContent({
     setSelectedFocus(niche?.focusAreas[0] ?? "");
     setSlideCount(7);
     setShowAllFocus(false);
+    setGenerationError(null);
   }, [userNiche]);
 
   const handleNicheSelect = (nicheName: string) => {
@@ -122,12 +166,47 @@ function PanelContent({
   const currentFocusAreas =
     FIXED_NICHES.find((n) => n.name === selectedNiche)?.focusAreas ?? [];
 
-  const canGenerate = !!selectedNiche && !!selectedFocus && !isGenerating;
+  // Determine if the selected date has hit its limit
+  const selectedDateKey = toDateKey(selectedScheduleDate);
+  const selectedDateUsage = usageByDate[selectedDateKey];
+  const isLimitReached =
+    selectedDateUsage != null &&
+    selectedDateUsage.used >= selectedDateUsage.limit;
 
-  const handleGenerate = () => {
+  const canGenerate =
+    !!selectedNiche && !!selectedFocus && !isGenerating && !isLimitReached;
+
+  const handleGenerate = async () => {
     if (!canGenerate) return;
-    onGenerate({ niche: selectedNiche, focusArea: selectedFocus, slideCount });
+    setGenerationError(null);
+    try {
+      await onGenerate({
+        niche: selectedNiche,
+        focusArea: selectedFocus,
+        slideCount,
+        scheduledFor: selectedScheduleDate,
+      });
+      // Optimistic: increment usage count for the selected date
+      onUsageUpdate(selectedScheduleDate);
+    } catch (err: unknown) {
+      const e = err as { status?: number };
+      if (e.status === 403) {
+        const dateStr = selectedScheduleDate.toLocaleDateString(undefined, {
+          month: "short",
+          day: "numeric",
+        });
+        setGenerationError(
+          `You've reached your limit for ${dateStr}. Upgrade your plan to generate more.`
+        );
+      }
+    }
   };
+
+  // Today's usage for the usage bar (always "today", regardless of selected date)
+  const todayKey = toDateKey(new Date());
+  const todayUsage = usageByDate[todayKey];
+  const todayUsed = todayUsage?.used ?? planData?.usedToday ?? 0;
+  const todayLimit = todayUsage?.limit ?? planData?.postsPerDay ?? 0;
 
   return (
     <div
@@ -184,7 +263,19 @@ function PanelContent({
       </div>
 
       {/* ---- Scrollable body ---- */}
-      <div className="scrollbar-dark" style={{ flex: 1, overflowY: "auto", padding: "20px" }}>
+      <div
+        className="scrollbar-dark"
+        style={{ flex: 1, overflowY: "auto", padding: "20px" }}
+      >
+        {/* Usage bar (only when plan data is available) */}
+        {planData && todayLimit > 0 && (
+          <PlanUsageBar
+            used={todayUsed}
+            limit={todayLimit}
+            planName={PLAN_DISPLAY_NAMES[planData.plan]}
+          />
+        )}
+
         {/* Section: Niche */}
         <p style={{ fontSize: 13, color: "#aaa", marginBottom: 14 }}>
           What Niche Content do you want to generate for?
@@ -241,7 +332,9 @@ function PanelContent({
               <strong style={{ color: "#fff" }}>{selectedNiche}</strong> do you
               want to focus on?
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+            <div
+              style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}
+            >
               {currentFocusAreas.slice(0, 4).map((area) => (
                 <button
                   key={area}
@@ -349,7 +442,7 @@ function PanelContent({
         </div>
 
         {/* Preset pills */}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
           {PRESET_SLIDES.map((preset) => (
             <button
               key={preset}
@@ -360,6 +453,46 @@ function PanelContent({
             </button>
           ))}
         </div>
+
+        {/* Divider */}
+        <div style={{ borderTop: "1px solid #1e1e2a", marginBottom: 20 }} />
+
+        {/* Date picker (only when plan data is available) */}
+        {planData && (
+          <ScheduleDatePicker
+            scheduleDaysAhead={planData.scheduleDaysAhead}
+            postsPerDay={planData.postsPerDay}
+            planName={PLAN_DISPLAY_NAMES[planData.plan]}
+            onDateSelect={onDateSelect}
+            usageByDate={usageByDate}
+            selectedDate={selectedScheduleDate}
+          />
+        )}
+
+        {/* Inline generation error */}
+        {generationError && (
+          <div
+            style={{
+              background: "rgba(245, 158, 11, 0.08)",
+              border: "1px solid rgba(245, 158, 11, 0.3)",
+              borderRadius: 8,
+              padding: "10px 14px",
+              marginBottom: 4,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+            }}
+          >
+            <AlertTriangle
+              size={14}
+              color="#f59e0b"
+              style={{ flexShrink: 0, marginTop: 1 }}
+            />
+            <span style={{ fontSize: 12, color: "#fbbf24", lineHeight: 1.5 }}>
+              {generationError}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ---- Footer ---- */}
@@ -384,17 +517,16 @@ function PanelContent({
           }}
         >
           {selectedNiche && selectedFocus
-            ? `${selectedNiche} · ${selectedFocus} · ${slideCount} posts${targetDate ? ` · For ${targetDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}` : ""}`
+            ? `${selectedNiche} · ${selectedFocus} · ${slideCount} posts · ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
             : "Select a niche to get started"}
         </span>
         <button
           onClick={handleGenerate}
           disabled={!canGenerate}
           style={{
-            background:
-              !!selectedNiche && !!selectedFocus && !isGenerating
-                ? "linear-gradient(135deg, #7c6cd4, #9d5fc0)"
-                : "#2a2a3a",
+            background: canGenerate
+              ? "linear-gradient(135deg, #7c6cd4, #9d5fc0)"
+              : "#2a2a3a",
             color: "#fff",
             border: "none",
             borderRadius: 999,
@@ -466,7 +598,14 @@ function PanelContent({
                 <ChevronLeft size={14} />
               </button>
               <div style={{ minWidth: 0 }}>
-                <p style={{ fontSize: 13, color: "#fff", fontWeight: 600, margin: 0 }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: "#fff",
+                    fontWeight: 600,
+                    margin: 0,
+                  }}
+                >
                   {selectedNiche}
                 </p>
                 <p style={{ fontSize: 11, color: "#555", margin: 0 }}>
@@ -490,28 +629,39 @@ function PanelContent({
                     }}
                     style={{
                       background: selectedFocus === area ? "#2d2650" : "#1e1e2a",
-                      border: `1px solid ${selectedFocus === area ? "#9d8ee8" : "#2e2e3e"}`,
+                      border: `1px solid ${
+                        selectedFocus === area ? "#9d8ee8" : "#2e2e3e"
+                      }`,
                       color: selectedFocus === area ? "#d6ccff" : "#ccc",
                       borderRadius: 8,
                       padding: "10px 14px",
                       fontSize: 13,
                       cursor: "pointer",
                       textAlign: "left",
-                      transition: "border-color 0.15s, background 0.15s, color 0.15s",
+                      transition:
+                        "border-color 0.15s, background 0.15s, color 0.15s",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
                     }}
                     onMouseEnter={(e) => {
                       if (selectedFocus !== area) {
-                        (e.currentTarget as HTMLButtonElement).style.background = "#232333";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#3e3e5e";
+                        (
+                          e.currentTarget as HTMLButtonElement
+                        ).style.background = "#232333";
+                        (
+                          e.currentTarget as HTMLButtonElement
+                        ).style.borderColor = "#3e3e5e";
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (selectedFocus !== area) {
-                        (e.currentTarget as HTMLButtonElement).style.background = "#1e1e2a";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "#2e2e3e";
+                        (
+                          e.currentTarget as HTMLButtonElement
+                        ).style.background = "#1e1e2a";
+                        (
+                          e.currentTarget as HTMLButtonElement
+                        ).style.borderColor = "#2e2e3e";
                       }
                     }}
                   >
@@ -550,6 +700,68 @@ export function GeneratePanel({
   isGenerating,
   targetDate,
 }: GeneratePanelProps) {
+  const [planData, setPlanData] = useState<PlanData | null>(null);
+  const [usageByDate, setUsageByDate] = useState<Record<string, DateUsage>>({});
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState<Date>(
+    targetDate ?? new Date()
+  );
+
+  // Reset selected date when panel opens with a new targetDate
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedScheduleDate(targetDate ?? new Date());
+    }
+  }, [isOpen, targetDate]);
+
+  // Fetch plan + usage when panel opens
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dates: string[] = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    });
+
+    Promise.allSettled([
+      api.getUserPlan(),
+      api.getGenerationStatus(dates),
+    ]).then(([planRes, statusRes]) => {
+      if (planRes.status === "fulfilled") {
+        setPlanData(planRes.value);
+      }
+      if (statusRes.status === "fulfilled") {
+        const map: Record<string, DateUsage> = {};
+        statusRes.value.dates.forEach((entry) => {
+          map[entry.date] = {
+            used: entry.used,
+            limit: entry.limit,
+            withinWindow: entry.withinWindow,
+          };
+        });
+        setUsageByDate(map);
+      }
+    });
+  }, [isOpen]);
+
+  // Optimistic usage increment after a successful generation
+  const handleUsageUpdate = (date: Date) => {
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    setUsageByDate((prev) => {
+      const current = prev[key] ?? {
+        used: 0,
+        limit: planData?.postsPerDay ?? 99,
+        withinWindow: true,
+      };
+      return {
+        ...prev,
+        [key]: { ...current, used: current.used + 1 },
+      };
+    });
+  };
+
   // Escape key handler
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -567,7 +779,11 @@ export function GeneratePanel({
       userNiche={userNiche}
       onGenerate={onGenerate}
       isGenerating={isGenerating}
-      targetDate={targetDate}
+      planData={planData}
+      usageByDate={usageByDate}
+      selectedScheduleDate={selectedScheduleDate}
+      onDateSelect={setSelectedScheduleDate}
+      onUsageUpdate={handleUsageUpdate}
     />
   );
 
@@ -610,7 +826,11 @@ export function GeneratePanel({
             padding: 16,
           }}
         >
-          <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>{sharedContent}</div>
+          <div
+            style={{ height: "100%", display: "flex", flexDirection: "column" }}
+          >
+            {sharedContent}
+          </div>
         </motion.div>
       </div>
 

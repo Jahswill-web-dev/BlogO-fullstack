@@ -49,6 +49,11 @@ export default function DashboardPage() {
   const [calendarSelectedDay, setCalendarSelectedDay] = useState<Date | null>(null);
   const [showAutoScheduleModal, setShowAutoScheduleModal] = useState(false);
   const [singlePostMode, setSinglePostMode] = useState(false);
+  const [planData, setPlanData] = useState<{
+    plan: "creator" | "builder" | "authority";
+    postsPerDay: number;
+    usedToday: number;
+  } | null>(null);
 
   useEffect(() => {
     const fromOnboarding =
@@ -174,6 +179,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     api.getProfile().then(setUserProfile).catch(() => setUserProfile(null));
+  }, []);
+
+  useEffect(() => {
+    api.getUserPlan()
+      .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, usedToday: d.usedToday }))
+      .catch(() => setPlanData(null));
   }, []);
 
   // postsByDay is still needed to compute selectedDayPosts for EditScheduleModal
@@ -326,10 +337,13 @@ export default function DashboardPage() {
     );
     setDetailPost((prev) => (prev?.id === id ? { ...prev, content } : prev));
     try {
-      if (post?.scheduledPostId && post.id === post.scheduledPostId) {
-        // Post came from the scheduled API — update via scheduled endpoint
+      if (post?.scheduledPostId) {
+        // Always push the new content to the BullMQ queue so it publishes correctly
         await api.updateScheduledPost(post.scheduledPostId, { content });
-      } else {
+      }
+      if (!post?.scheduledPostId || post.id !== post.scheduledPostId) {
+        // Also update the CRUD post when it is a separate record (i.e. not a
+        // standalone ScheduledPost where id === scheduledPostId)
         await api.updatePost(id, { finalPost: content });
       }
     } catch (err) {
@@ -341,19 +355,17 @@ export default function DashboardPage() {
     niche: string;
     focusArea: string;
     slideCount: number;
+    scheduledFor: Date;
   }) => {
     setIsGenerating(true);
-    // Capture the target day at call time (calendarSelectedDay may change)
-    const targetDay = calendarSelectedDay;
-    const defaultDate = new Date();
-    defaultDate.setHours(9, 0, 0, 0);
-    const calendarDate = targetDay ?? defaultDate;
+    const calendarDate = params.scheduledFor;
+    const scheduledForKey = dayKey(calendarDate);
     try {
-      const res = await api.generateTargetedPosts({
+      const res = await api.generatePost({
         niche: params.niche,
         focusAreas: [params.focusArea],
         count: params.slideCount,
-        target_date: targetDay ? dayKey(targetDay) : undefined,
+        scheduledFor: scheduledForKey,
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const newPosts: Post[] = (res.posts as ApiPost[]).map((p: any) => ({
@@ -370,7 +382,9 @@ export default function DashboardPage() {
       setShowOnboardingModal(true);
       setShowGeneratePanel(false);
     } catch (err) {
-      console.error("[Dashboard] Generate targeted posts failed:", err);
+      console.error("[Dashboard] Generate posts failed:", err);
+      // Re-throw so GeneratePanel can surface a 403 inline error
+      throw err;
     } finally {
       setIsGenerating(false);
     }
@@ -567,6 +581,75 @@ export default function DashboardPage() {
                 </div>
               ))}
             </div>
+
+            {/* Plan usage strip */}
+            {planData && (() => {
+              const PLAN_NAMES: Record<string, string> = { creator: "Creator", builder: "Builder", authority: "Authority" };
+              const planName = PLAN_NAMES[planData.plan] ?? planData.plan;
+              const pct = planData.postsPerDay > 0
+                ? Math.min((planData.usedToday / planData.postsPerDay) * 100, 100)
+                : 0;
+              const isLimitReached = planData.usedToday >= planData.postsPerDay;
+              return (
+                <div
+                  className="px-4 py-3 sm:px-6"
+                  style={{ borderTop: "0.5px solid #1F2933" }}
+                >
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "#d6ccff",
+                          background: "#2d2650",
+                          border: "1px solid #9d8ee8",
+                          borderRadius: 999,
+                          padding: "2px 7px",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {planName}
+                      </span>
+                      <span className="text-[10px] sm:text-[11px] text-white/40 truncate">
+                        Today&apos;s generation
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: isLimitReached ? "#f59e0b" : "#6b7280",
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {isLimitReached
+                        ? "Limit reached"
+                        : `${planData.usedToday} / ${planData.postsPerDay} posts`}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      width: "100%",
+                      height: 4,
+                      background: "#1e1e2e",
+                      borderRadius: 999,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${pct}%`,
+                        height: "100%",
+                        background: isLimitReached ? "#f59e0b" : "#9d8ee8",
+                        borderRadius: 999,
+                        transition: "width 0.4s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Generating banner */}

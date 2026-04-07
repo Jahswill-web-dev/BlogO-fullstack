@@ -225,13 +225,16 @@ Within each focus area a pillar and subtopic are picked at random on every reque
       "pain": "...",
       "targetDate": "2026-04-09T00:00:00.000Z"
     }
-  ]
+  ],
+  "remaining": 1
 }
 ```
 `targetDate` is `null` / omitted when no `target_date` was sent in the request.
+`remaining` is how many more posts the user can still generate for that calendar day.
 
 **Error responses:**
 - `400` — `niche` or `focusAreas` missing / invalid
+- `403` — daily limit reached or date outside plan's scheduling window
 - `500` — generation failure
 
 ---
@@ -627,6 +630,149 @@ Edit the content or scheduled time of a pending post. The old BullMQ job is remo
 ### How the worker handles failures
 
 The BullMQ worker retries failed posts up to **3 times** with **exponential backoff** (5 s → 25 s → 125 s). Status stays `pending` during retries. Only after all attempts are exhausted does the status change to `failed` and `errorMessage` get populated.
+
+---
+
+---
+
+## Generation Limits & Plan
+
+### Subscription Plans
+
+| Plan | Posts / day | Schedule ahead |
+|------|-------------|----------------|
+| `creator` | 4 | 1 day (today only) |
+| `builder` | 7 | 7 days (1 week) |
+| `authority` | 12 | 14 days (2 weeks) |
+
+All post generation endpoints (`/generate-subtopic-post`, `/generate-targeted-posts`, `/api/generate-post`) enforce both the daily cap and the scheduling window. The cap is per **calendar day (UTC)** based on the `target_date` / `scheduledFor` field — not when the request is made.
+
+---
+
+### `POST /api/generate-post`
+
+Targeted post generation with built-in plan limit enforcement.
+
+**Auth:** JWT required.
+
+**Body:**
+```json
+{
+  "niche": "SaaS productivity tools",
+  "focusAreas": ["customer retention", "onboarding"],
+  "count": 2,
+  "scheduledFor": "2026-04-09"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `niche` | `string` | Yes | The content niche |
+| `focusAreas` | `string[]` | Yes | One or more focus areas within the niche |
+| `count` | `number` | No | Posts to generate. Defaults to `1`, max `20` |
+| `scheduledFor` | `string` | Yes | ISO date string for the target calendar day (e.g. `"2026-04-09"`) |
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "posts": [ { "finalPost": "...", "contentPillar": "...", ... } ],
+  "remaining": 2
+}
+```
+`remaining` — how many more posts the user can generate for `scheduledFor` after this request.
+
+**Errors:**
+- `400` — missing required fields or invalid date
+- `403` — daily limit reached (`"Daily post limit reached for 2026-04-09"`) or date too far ahead (`"Your plan does not allow scheduling that far ahead"`)
+- `500` — generation failure
+
+---
+
+### `GET /api/generation-status`
+
+Returns usage and availability for a list of dates. Powers the frontend calendar UI.
+
+**Auth:** JWT required.
+
+**Query params:**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `dates[]` | `string[]` | Yes | One or more ISO date strings, e.g. `?dates[]=2026-04-07&dates[]=2026-04-08` |
+
+**Example:** `GET /api/generation-status?dates[]=2026-04-07&dates[]=2026-04-08&dates[]=2026-04-14`
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "dates": [
+    {
+      "date": "2026-04-07",
+      "used": 2,
+      "limit": 4,
+      "remaining": 2,
+      "withinWindow": true
+    },
+    {
+      "date": "2026-04-08",
+      "used": 0,
+      "limit": 4,
+      "remaining": 4,
+      "withinWindow": true
+    },
+    {
+      "date": "2026-04-14",
+      "used": 0,
+      "limit": 4,
+      "remaining": 4,
+      "withinWindow": false
+    }
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `used` | Posts already generated / logged for that UTC calendar day |
+| `limit` | Max posts allowed per day on the user's plan |
+| `remaining` | `limit - used` (floored at 0) |
+| `withinWindow` | `true` if the date falls within the user's scheduling window (today through today + `scheduleDaysAhead`). Dates outside this window cannot be generated for. |
+
+**Errors:**
+- `400` — `dates[]` query param missing
+- `500` — lookup failure
+
+---
+
+### `GET /api/user/plan`
+
+Returns the user's current plan, limits, and today's usage.
+
+**Auth:** JWT required.
+
+**Response `200`:**
+```json
+{
+  "plan": "creator",
+  "postsPerDay": 4,
+  "scheduleDaysAhead": 1,
+  "usedToday": 1,
+  "remainingToday": 3
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `plan` | `"creator"`, `"builder"`, or `"authority"` |
+| `postsPerDay` | Max posts per calendar day on this plan |
+| `scheduleDaysAhead` | How many days into the future posts can be scheduled |
+| `usedToday` | Posts generated for today's UTC calendar day |
+| `remainingToday` | `postsPerDay - usedToday` (floored at 0) |
+
+**Errors:**
+- `500` — lookup failure
 
 ---
 
