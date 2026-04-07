@@ -116,11 +116,13 @@ function CompactPostCard({
 /* ------------------------------------------------------------------ */
 /*  CalendarCard                                                        */
 /* ------------------------------------------------------------------ */
+const STATUS_ORDER: Record<string, number> = { posted: 0, scheduled: 1, draft: 2 };
+
 interface CalendarCardProps {
   posts: Post[];
   onPostClick: (post: Post) => void;
   onBulkSchedule: (scheduledPosts: Post[]) => void;
-  onGenerateClick: () => void;
+  onGenerateClick: (day: Date) => void;
   onDayClick: (day: Date, posts: Post[]) => void;
 }
 
@@ -137,13 +139,13 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
   const autoScheduleRef = useRef<HTMLDivElement>(null);
 
   /* ---------- derived data ---------- */
-  const STATUS_ORDER: Record<string, number> = { posted: 0, scheduled: 1, draft: 2 };
-
   const postsByDay = useMemo(() => {
     const map: Record<string, Post[]> = {};
     posts.forEach((p) => {
-      if (!p.scheduledDate) return;
-      const key = dayKey(p.scheduledDate);
+      // Group by targetDate (generation day) if available, else fall back to scheduledDate
+      const calendarDay = p.targetDate ?? p.scheduledDate;
+      if (!calendarDay) return;
+      const key = dayKey(calendarDay);
       if (!map[key]) map[key] = [];
       map[key].push(p);
     });
@@ -427,7 +429,7 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
                   No posts for this day.
                 </p>
                 <button
-                  onClick={onGenerateClick}
+                  onClick={() => onGenerateClick(selectedDay)}
                   className="flex items-center gap-1.5 text-white text-[11px] font-medium px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
                   style={{ background: "#5C3FED" }}
                 >

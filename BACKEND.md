@@ -159,9 +159,14 @@ Two generation modes are available: random (picks any subtopic) and targeted (us
 
 **`POST /generate-subtopic-post` body:**
 ```json
-{ "count": 3 }
+{ "count": 3, "target_date": "2026-04-09" }
 ```
-- `count` defaults to `3`, max `20`.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `count` | `number` | No | Posts to generate. Defaults to `3`, max `20` |
+| `target_date` | `string` | No | Calendar day to associate posts with (`YYYY-MM-DD`, e.g. `"2026-04-09"`). Stored as UTC midnight. Use `GET /posts?date=` to retrieve posts for this day |
+
 - Subtopic and content pillar are selected randomly from the user's full content strategy.
 
 ---
@@ -186,6 +191,7 @@ Two generation modes are available: random (picks any subtopic) and targeted (us
 | `niche` | `string` | Yes | The content niche to generate posts for |
 | `focusAreas` | `string[]` | Yes | One or more focus areas within that niche |
 | `count` | `number` | No | Total posts to generate. Defaults to `3`, max `20` |
+| `target_date` | `string` | No | Calendar day to associate posts with (`YYYY-MM-DD`). Stored as UTC midnight |
 
 **How it works:**
 
@@ -216,11 +222,13 @@ Within each focus area a pillar and subtopic are picked at random on every reque
       "subtopic": "Reducing churn with onboarding emails",
       "angle": "...",
       "goal": "...",
-      "pain": "..."
+      "pain": "...",
+      "targetDate": "2026-04-09T00:00:00.000Z"
     }
   ]
 }
 ```
+`targetDate` is `null` / omitted when no `target_date` was sent in the request.
 
 **Error responses:**
 - `400` — `niche` or `focusAreas` missing / invalid
@@ -234,6 +242,7 @@ Within each focus area a pillar and subtopic are picked at random on every reque
 |--------|----------|------|-------------|
 | GET | `/posts` | JWT | Get all posts for the current user |
 | GET | `/posts/:id` | JWT | Get a single post by ID |
+| POST | `/posts/:id/schedule` | JWT | Schedule a specific generated post for publishing |
 | DELETE | `/posts/:id` | JWT | Delete a post by ID (must be owner) |
 | PATCH | `/posts/:id` | JWT | Edit a post's content fields (must be owner) |
 
@@ -243,8 +252,58 @@ Within each focus area a pillar and subtopic are picked at random on every reque
 |-------|------|-------------|
 | `contentPillar` | string | Filter by content pillar name |
 | `subtopic` | string | Filter by subtopic name |
+| `date` | string | Filter by calendar day in `YYYY-MM-DD` format — returns posts whose `targetDate` falls on that UTC day |
 
-Both are optional. Example: `GET /posts?contentPillar=Audience+Growth`
+All are optional. Examples:
+- `GET /posts?contentPillar=Audience+Growth`
+- `GET /posts?date=2026-04-09` — returns only posts generated for April 9th
+
+### `POST /posts/:id/schedule`
+
+Schedule a specific generated post (SubtopicPost) for publishing to X. Creates a linked `ScheduledPost` record and enqueues a BullMQ job.
+
+**Path param:** `:id` — the SubtopicPost ID
+
+**Body:**
+```json
+{
+  "scheduled_at": "2026-04-09T09:00:00.000Z",
+  "media_urls": []
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `scheduled_at` | `ISO 8601 string` | Yes | UTC datetime to publish. Must be in the future |
+| `media_urls` | `string[]` | No | Optional media URLs to attach |
+
+**How it works:** Uses `finalPost` as the tweet content if set, otherwise falls back to `post`. After creating the `ScheduledPost`, the SubtopicPost's `scheduledPostId` is updated to point to the new scheduled record (bidirectional link).
+
+Note: `targetDate` (the calendar day the post was generated for) and `scheduled_at` (when it actually publishes) are independent — a post generated for day 7 can be scheduled to publish on day 9.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "scheduledPost": {
+    "_id": "664a1b2c...",
+    "userId": "...",
+    "content": "...",
+    "status": "pending",
+    "scheduledAt": "2026-04-09T09:00:00.000Z",
+    "subtopicPostId": "663e...",
+    "jobId": "...",
+    ...
+  }
+}
+```
+
+**Errors:**
+- `400` — `scheduled_at` missing / not a future timestamp, or post has no content (`finalPost` and `post` both unset)
+- `403` — post belongs to a different user
+- `404` — SubtopicPost not found
+
+---
 
 ### `PATCH /posts/:id` — body
 
@@ -255,7 +314,8 @@ Send only the fields you want to update (all optional):
   "post": "Updated raw post text",
   "skeleton": "Updated outline / structure",
   "finalPost": "Updated ready-to-publish version",
-  "meta": { "anyKey": "anyValue" }
+  "meta": { "anyKey": "anyValue" },
+  "scheduledPostId": "664a1b2c..."
 }
 ```
 
@@ -303,10 +363,17 @@ Returns `403` if the post belongs to a different user, `404` if not found.
   "post": "Raw generated post text...",
   "finalPost": "Ready-to-publish tweet text...",
   "meta": {},
+  "targetDate": "2026-04-09T00:00:00.000Z",
+  "scheduledPostId": "664a1b2c...",
   "createdAt": "...",
   "updatedAt": "..."
 }
 ```
+
+| Field | Description |
+|-------|-------------|
+| `targetDate` | The calendar day this post was generated for (UTC midnight). `null` if no `target_date` was sent at generation time |
+| `scheduledPostId` | ObjectId of the linked `ScheduledPost` if this post has been scheduled. `null` otherwise |
 
 ---
 
@@ -542,6 +609,7 @@ Edit the content or scheduled time of a pending post. The old BullMQ job is remo
   "errorMessage": null,
   "batchId": "550e8400-e29b-41d4-a716-446655440000",
   "jobId": "1",
+  "subtopicPostId": "663e1a2b3c4d5e6f78901234",
   "createdAt": "2026-04-05T12:00:00.000Z",
   "updatedAt": "2026-04-05T12:00:00.000Z"
 }
@@ -554,6 +622,7 @@ Edit the content or scheduled time of a pending post. The old BullMQ job is remo
 | `jobId` | Internal BullMQ job ID. Used for job cancellation/rescheduling — not needed by clients |
 | `postedAt` | Set when the worker successfully publishes the post |
 | `errorMessage` | Set when all 3 retry attempts fail. Contains the last error message |
+| `subtopicPostId` | ObjectId of the source `SubtopicPost` if scheduled via `POST /posts/:id/schedule`. `null` for manually scheduled posts |
 
 ### How the worker handles failures
 

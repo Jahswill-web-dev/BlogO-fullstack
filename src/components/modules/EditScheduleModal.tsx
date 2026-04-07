@@ -23,6 +23,8 @@ export type Post = {
   status: "draft" | "scheduled" | "posted";
   scheduledDate?: Date;
   scheduledPostId?: string;
+  /** Calendar day this post was generated for — used for grouping in the calendar view */
+  targetDate?: Date;
 };
 
 export const FREQUENCIES = [

@@ -45,6 +45,7 @@ export default function DashboardPage() {
   const [showConnectXModal, setShowConnectXModal] = useState(false);
   const [dayPopupDate, setDayPopupDate] = useState<Date | null>(null);
   const [detailSourceDay, setDetailSourceDay] = useState<Date | null>(null);
+  const [calendarSelectedDay, setCalendarSelectedDay] = useState<Date | null>(null);
   const [singlePostMode, setSinglePostMode] = useState(false);
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function DashboardPage() {
 
     Promise.allSettled([api.getPosts(), api.getScheduledPosts()]).then(
       ([crudResult, scheduledResult]) => {
-        // ── CRUD posts (drafts) ──────────────────────────────────────────
+        // ── Raw CRUD posts ───────────────────────────────────────────────
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let crudRaw: any[] = [];
         if (crudResult.status === "fulfilled") {
@@ -69,37 +70,10 @@ export default function DashboardPage() {
           console.error("[Dashboard] GET /posts failed:", crudResult.reason);
         }
 
-        // Skip CRUD posts that have already been handed off to the scheduler
-        const crudPosts: Post[] = crudRaw
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((p: any) => !p.meta?.scheduled)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((p: any) => ({
-            id: p._id,
-            content: p.finalPost,
-            platform: "Twitter" as const,
-            status: (p.status as Post["status"]) ?? "draft",
-            scheduledDate: p.scheduledDate
-              ? new Date(p.scheduledDate)
-              : new Date(today9am),
-          }));
-
-        // ── Scheduled API posts ──────────────────────────────────────────
-        let scheduledApiPosts: Post[] = [];
+        // ── Raw scheduled API posts ──────────────────────────────────────
+        let allScheduledRaw: ScheduledApiPost[] = [];
         if (scheduledResult.status === "fulfilled") {
-          scheduledApiPosts = scheduledResult.value.posts
-            .filter((p: ScheduledApiPost) => p.status !== "cancelled" && p.status !== "failed")
-            .map((p: ScheduledApiPost) => ({
-              id: p._id,
-              content: p.content,
-              platform: "Twitter" as const,
-              status:
-                p.status === "pending"
-                  ? ("scheduled" as const)
-                  : ("posted" as const),
-              scheduledDate: new Date(p.scheduledAt),
-              scheduledPostId: p._id,
-            }));
+          allScheduledRaw = scheduledResult.value.posts ?? [];
         } else {
           console.error(
             "[Dashboard] GET /api/posts/scheduled failed:",
@@ -107,7 +81,79 @@ export default function DashboardPage() {
           );
         }
 
-        const fetched = [...crudPosts, ...scheduledApiPosts];
+        // Build a lookup map: scheduledPost._id → scheduledPost
+        const scheduledMap = new Map<string, ScheduledApiPost>(
+          allScheduledRaw.map((p) => [p._id, p])
+        );
+
+        // Track which scheduled post IDs are linked to a CRUD post
+        const linkedScheduledIds = new Set<string>();
+
+        // ── Merge: CRUD posts stay as source of truth ────────────────────
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const crudPosts: Post[] = crudRaw.map((p: any): Post | null => {
+          const targetDate = p.targetDate ? new Date(p.targetDate) : undefined;
+          const linkedId = p.meta?.scheduledPostId as string | undefined;
+          const scheduledInfo = linkedId ? scheduledMap.get(linkedId) : undefined;
+
+          if (linkedId) linkedScheduledIds.add(linkedId);
+
+          if (scheduledInfo) {
+            if (scheduledInfo.status === "cancelled" || scheduledInfo.status === "failed") {
+              // Scheduled post is dead — show the CRUD post as a plain draft again
+              return {
+                id: p._id,
+                content: p.finalPost,
+                platform: "Twitter" as const,
+                status: "draft",
+                scheduledDate: targetDate ?? new Date(today9am),
+                targetDate,
+              };
+            }
+            // Live scheduled post — merge status/time but keep targetDate for calendar grouping
+            return {
+              id: p._id,
+              content: scheduledInfo.content ?? p.finalPost,
+              platform: "Twitter" as const,
+              status: scheduledInfo.status === "pending" ? "scheduled" : "posted",
+              scheduledDate: new Date(scheduledInfo.scheduledAt),
+              scheduledPostId: scheduledInfo._id,
+              targetDate,
+            };
+          }
+
+          // Post was marked scheduled but its linked record is gone — treat as draft
+          if (p.meta?.scheduled) return null;
+
+          // Plain draft
+          return {
+            id: p._id,
+            content: p.finalPost,
+            platform: "Twitter" as const,
+            status: (p.status as Post["status"]) ?? "draft",
+            scheduledDate: targetDate ?? new Date(today9am),
+            targetDate,
+          };
+        }).filter((p): p is Post => p !== null);
+
+        // ── Standalone scheduled posts (not linked to any CRUD post) ─────
+        const standaloneScheduled: Post[] = allScheduledRaw
+          .filter(
+            (p) =>
+              !linkedScheduledIds.has(p._id) &&
+              p.status !== "cancelled" &&
+              p.status !== "failed"
+          )
+          .map((p: ScheduledApiPost): Post => ({
+            id: p._id,
+            content: p.content,
+            platform: "Twitter" as const,
+            status: p.status === "pending" ? "scheduled" : "posted",
+            scheduledDate: new Date(p.scheduledAt),
+            scheduledPostId: p._id,
+          }));
+
+        const fetched = [...crudPosts, ...standaloneScheduled];
         console.log("[Dashboard] Merged posts:", fetched);
         setPosts(fetched);
         setPostsLoading(false);
@@ -122,7 +168,7 @@ export default function DashboardPage() {
         }
       }
     );
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // run once on mount
 
   useEffect(() => {
     api.getProfile().then(setUserProfile).catch(() => setUserProfile(null));
@@ -258,21 +304,26 @@ export default function DashboardPage() {
     slideCount: number;
   }) => {
     setIsGenerating(true);
+    // Capture the target day at call time (calendarSelectedDay may change)
+    const targetDay = calendarSelectedDay;
+    const defaultDate = new Date();
+    defaultDate.setHours(9, 0, 0, 0);
+    const calendarDate = targetDay ?? defaultDate;
     try {
       const res = await api.generateTargetedPosts({
         niche: params.niche,
         focusAreas: [params.focusArea],
         count: params.slideCount,
+        target_date: targetDay ? dayKey(targetDay) : undefined,
       });
-      const today9am = new Date();
-      today9am.setHours(9, 0, 0, 0);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const newPosts: Post[] = (res.posts as ApiPost[]).map((p: any) => ({
         id: p._id ?? p.id,
         content: p.finalPost,
         platform: "Twitter" as const,
         status: "draft" as const,
-        scheduledDate: new Date(today9am),
+        scheduledDate: p.targetDate ? new Date(p.targetDate) : calendarDate,
+        targetDate: p.targetDate ? new Date(p.targetDate) : calendarDate,
       }));
       setPosts((prev) => [...newPosts, ...prev]);
       setOnboardingPosts(newPosts);
@@ -436,7 +487,7 @@ export default function DashboardPage() {
                 <button
                   className="flex items-center gap-1.5 text-white rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity"
                   style={{ background: "#5C3FED" }}
-                  onClick={() => setShowGeneratePanel(true)}
+                  onClick={() => { setCalendarSelectedDay(null); setShowGeneratePanel(true); }}
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Create post</span>
@@ -512,8 +563,8 @@ export default function DashboardPage() {
               posts={posts}
               onPostClick={handlePostClick}
               onBulkSchedule={handleBulkSchedule}
-              onGenerateClick={() => setShowGeneratePanel(true)}
-              onDayClick={(day) => setDayPopupDate(day)}
+              onGenerateClick={(day) => { setCalendarSelectedDay(day); setShowGeneratePanel(true); }}
+              onDayClick={(day) => { setCalendarSelectedDay(day); setDayPopupDate(day); }}
             />
           </div>
         </div>
@@ -583,6 +634,7 @@ export default function DashboardPage() {
             userNiche={userProfile?.userNiche ?? ""}
             onGenerate={handleGenerateCarousel}
             isGenerating={isGenerating}
+            targetDate={calendarSelectedDay ?? undefined}
           />
         )}
       </AnimatePresence>
@@ -601,6 +653,7 @@ export default function DashboardPage() {
               setDetailPost(post);
             }}
             onGenerateClick={() => {
+              setCalendarSelectedDay(dayPopupDate);
               setDayPopupDate(null);
               setShowGeneratePanel(true);
             }}

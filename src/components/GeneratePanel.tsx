@@ -14,6 +14,7 @@ interface GeneratePanelProps {
   onClose: () => void;
   userNiche: string;
   isGenerating?: boolean;
+  targetDate?: Date;
   onGenerate: (params: {
     niche: string;
     focusArea: string;
@@ -83,10 +84,12 @@ function PanelContent({
   userNiche,
   onGenerate,
   isGenerating,
+  targetDate,
 }: {
   onClose: () => void;
   userNiche: string;
   isGenerating?: boolean;
+  targetDate?: Date;
   onGenerate: GeneratePanelProps["onGenerate"];
 }) {
   const [selectedNiche, setSelectedNiche] = useState(userNiche);
@@ -381,7 +384,7 @@ function PanelContent({
           }}
         >
           {selectedNiche && selectedFocus
-            ? `${selectedNiche} · ${selectedFocus} · ${slideCount} posts`
+            ? `${selectedNiche} · ${selectedFocus} · ${slideCount} posts${targetDate ? ` · For ${targetDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}` : ""}`
             : "Select a niche to get started"}
         </span>
         <button
@@ -545,6 +548,7 @@ export function GeneratePanel({
   userNiche,
   onGenerate,
   isGenerating,
+  targetDate,
 }: GeneratePanelProps) {
   // Escape key handler
   useEffect(() => {
@@ -563,6 +567,7 @@ export function GeneratePanel({
       userNiche={userNiche}
       onGenerate={onGenerate}
       isGenerating={isGenerating}
+      targetDate={targetDate}
     />
   );
 

@@ -67,6 +67,7 @@ export type ApiPost = {
   finalPost: string;
   status?: string;
   scheduledDate?: string;
+  targetDate?: string;
   meta?: Record<string, unknown>;
 };
 
@@ -103,10 +104,10 @@ export const api = {
     apiFetch<unknown>("/generate-content-strategy", { method: "POST" }),
 
   /** Generate N educational posts (randomly picks subtopics from DB) */
-  generatePosts: (count = 10) =>
+  generatePosts: (body: { count?: number; target_date?: string }) =>
     apiFetch<{ success: boolean; posts: unknown[] }>("/generate-subtopic-post", {
       method: "POST",
-      body: JSON.stringify({ count }),
+      body: JSON.stringify(body),
     }),
 
   /** Generate posts for a specific niche + focus areas (Mode B) */
@@ -114,6 +115,7 @@ export const api = {
     niche: string;
     focusAreas: string[];
     count: number;
+    target_date?: string;
   }) =>
     apiFetch<{ success: boolean; posts: unknown[] }>("/generate-targeted-posts", {
       method: "POST",
