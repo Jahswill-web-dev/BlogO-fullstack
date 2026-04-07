@@ -50,7 +50,8 @@ function PanelPostCard({
   onClick: () => void;
 }) {
   const isPosted = post.status === "posted";
-  const time = post.scheduledDate ? formatTime(post.scheduledDate) : "";
+  const isDraft = post.status === "draft";
+  const time = !isDraft && post.scheduledDate ? formatTime(post.scheduledDate) : null;
 
   return (
     <button
@@ -61,11 +62,11 @@ function PanelPostCard({
         <div
           className={cn(
             "w-1.5 h-1.5 rounded-full flex-shrink-0",
-            isPosted ? "bg-[#22c55e]" : "bg-[#1D9BF0]"
+            isPosted ? "bg-[#22c55e]" : isDraft ? "bg-white/20" : "bg-[#1D9BF0]"
           )}
         />
         <span className="text-white/50 text-xs font-medium tabular-nums">
-          {time}
+          {time ?? <span className="italic text-white/30">Draft</span>}
         </span>
       </div>
       <p className="text-white/75 text-[13px] leading-snug line-clamp-2">
@@ -86,7 +87,8 @@ function CompactPostCard({
   onClick: () => void;
 }) {
   const isPosted = post.status === "posted";
-  const time = post.scheduledDate ? formatTime(post.scheduledDate) : "";
+  const isDraft = post.status === "draft";
+  const time = !isDraft && post.scheduledDate ? formatTime(post.scheduledDate) : null;
 
   return (
     <button
@@ -97,11 +99,11 @@ function CompactPostCard({
         <div
           className={cn(
             "w-1.5 h-1.5 rounded-full flex-shrink-0",
-            isPosted ? "bg-[#22c55e]" : "bg-[#1D9BF0]"
+            isPosted ? "bg-[#22c55e]" : isDraft ? "bg-white/20" : "bg-[#1D9BF0]"
           )}
         />
         <span className="text-white/50 text-xs font-medium tabular-nums flex-shrink-0">
-          {time}
+          {time ?? <span className="italic text-white/30">Draft</span>}
         </span>
         <p className="text-white/70 text-[13px] leading-tight line-clamp-1 min-w-0">
           {post.content}
@@ -135,6 +137,8 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
   const autoScheduleRef = useRef<HTMLDivElement>(null);
 
   /* ---------- derived data ---------- */
+  const STATUS_ORDER: Record<string, number> = { posted: 0, scheduled: 1, draft: 2 };
+
   const postsByDay = useMemo(() => {
     const map: Record<string, Post[]> = {};
     posts.forEach((p) => {
@@ -143,6 +147,13 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
       if (!map[key]) map[key] = [];
       map[key].push(p);
     });
+    // Sort each day: posted → scheduled → draft
+    Object.values(map).forEach((arr) =>
+      arr.sort(
+        (a, b) =>
+          (STATUS_ORDER[a.status] ?? 2) - (STATUS_ORDER[b.status] ?? 2)
+      )
+    );
     return map;
   }, [posts]);
 

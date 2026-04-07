@@ -9,10 +9,12 @@ import {
   Heart,
   BarChart2,
   Pencil,
+  ArrowLeft,
 } from "lucide-react";
 import { Post } from "@/components/modules/EditScheduleModal";
 import { AuthUser } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                             */
@@ -135,6 +137,8 @@ interface PostDetailPopupProps {
   onDelete: (id: string) => void;
   onPostNow: (id: string) => void;
   onContentSave: (id: string, content: string) => void;
+  onSchedule: (id: string, date: Date, content: string) => void;
+  onBack?: () => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -145,17 +149,58 @@ function PopupContent({
   post,
   user,
   onClose,
-  onEdit,
   onDelete,
   onPostNow,
   onContentSave,
+  onSchedule,
+  onBack,
 }: PostDetailPopupProps) {
-  const date = post.scheduledDate ?? new Date();
+  const date = post.scheduledDate;
+
+  // ── inline content edit state ──
   const [draft, setDraft] = useState(post.content);
   const [focused, setFocused] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // ── inline schedule picker state ──
+  const todayStr = new Date().toISOString().split("T")[0];
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState<string>(() => {
+    if (post.scheduledDate) return post.scheduledDate.toISOString().split("T")[0];
+    return todayStr;
+  });
+  const [pickerTime, setPickerTime] = useState<string>(() => {
+    if (post.scheduledDate) {
+      const h = String(post.scheduledDate.getHours()).padStart(2, "0");
+      const m = String(post.scheduledDate.getMinutes()).padStart(2, "0");
+      return `${h}:${m}`;
+    }
+    return "09:00";
+  });
+
+  const handleFocusTextarea = () => {
+    textareaRef.current?.focus();
+    const len = textareaRef.current?.value.length ?? 0;
+    textareaRef.current?.setSelectionRange(len, len);
+  };
+
+  const handleScheduleConfirm = () => {
+    if (!pickerDate || !pickerTime) return;
+    const dt = new Date(`${pickerDate}T${pickerTime}`);
+    // Ensure the picked time is at least 30 seconds in the future
+    if (dt.getTime() <= Date.now() + 30_000) {
+      toast.error("Please pick a time in the future.");
+      return;
+    }
+    // Save any pending draft edits before scheduling
+    if (draft.trim() !== post.content.trim()) {
+      onContentSave(post.id, draft);
+    }
+    onSchedule(post.id, dt, draft);
+    setShowPicker(false);
+  };
 
   const autoResize = () => {
     const el = textareaRef.current;
@@ -197,10 +242,28 @@ function PopupContent({
         style={{ borderBottom: "0.5px solid #1F2933" }}
       >
         <div className="flex items-center gap-2 min-w-0">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="flex items-center justify-center text-white/60 hover:text-white transition-colors flex-shrink-0"
+              style={{
+                width: 26,
+                height: 26,
+                background: "#1F2933",
+                border: "0.5px solid #2f3336",
+                borderRadius: 6,
+              }}
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
           <StatusPill status={post.status} />
-          <span className="text-[12px] text-white/40 truncate">
-            {formatHeaderDate(date)}
-          </span>
+          {post.status !== "draft" && date && (
+            <span className="text-[12px] text-white/40 truncate">
+              {formatHeaderDate(date)}
+            </span>
+          )}
         </div>
 
         {/* Close button */}
@@ -283,6 +346,13 @@ function PopupContent({
           )}
         </div>
 
+        {/* Character counter */}
+        <div className="flex justify-end mt-1 px-2">
+          <span className="text-[11px] tabular-nums" style={{ color: "rgba(255,255,255,0.2)" }}>
+            {draft.length}
+          </span>
+        </div>
+
         {/* Engagement row */}
         <div
           className="flex items-center mt-3 pt-3"
@@ -307,57 +377,120 @@ function PopupContent({
         </div>
       </div>
 
-      {/* ── Section 3: Schedule row (pinned) ── */}
+      {/* ── Section 3: Schedule row + inline picker ── */}
       <div
-        className="flex items-center justify-between px-4 py-3 flex-shrink-0"
+        className="flex-shrink-0"
         style={{
           borderTop: "0.5px solid #1F2933",
-          borderBottom: "0.5px solid #1F2933",
+          borderBottom: showPicker ? "none" : "0.5px solid #1F2933",
         }}
       >
-        <div className="flex items-center gap-2.5 min-w-0">
-          {/* Icon box */}
-          <div
-            className="flex items-center justify-center flex-shrink-0"
+        {/* Schedule row */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              className="flex items-center justify-center flex-shrink-0"
+              style={{ width: 28, height: 28, background: "#1F2933", borderRadius: 8 }}
+            >
+              <CalendarDays size={13} className="text-white/60" />
+            </div>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-[12px] text-white/40 leading-tight">Scheduled for</span>
+              {post.status === "draft" ? (
+                <span className="text-white/50 leading-tight italic" style={{ fontSize: 13 }}>
+                  Not yet scheduled
+                </span>
+              ) : (
+                <span className="text-white leading-tight" style={{ fontSize: 13, fontWeight: 500 }}>
+                  {date ? formatScheduleDate(date) : "—"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowPicker((v) => !v)}
+            className="flex-shrink-0 ml-3 transition-colors"
             style={{
-              width: 28,
-              height: 28,
-              background: "#1F2933",
+              fontSize: 12,
+              color: showPicker ? "#fff" : "#1D9BF0",
+              border: `0.5px solid ${showPicker ? "#2f3336" : "#1D9BF0"}`,
+              background: showPicker ? "#1F2933" : "transparent",
               borderRadius: 8,
+              padding: "5px 10px",
             }}
           >
-            <CalendarDays size={13} className="text-white/60" />
-          </div>
-
-          {/* Date lines */}
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-[12px] text-white/40 leading-tight">
-              Scheduled for
-            </span>
-            <span
-              className="text-white leading-tight"
-              style={{ fontSize: 13, fontWeight: 500 }}
-            >
-              {formatScheduleDate(date)}
-            </span>
-          </div>
+            {post.status === "draft" ? "Schedule" : "Reschedule"}
+          </button>
         </div>
 
-        {/* Reschedule button */}
-        <button
-          onClick={() => onEdit(post)}
-          className="flex-shrink-0 ml-3 transition-colors hover:bg-[#EFF6FF] hover:text-[#1D4ED8]"
-          style={{
-            fontSize: 12,
-            color: "#1D9BF0",
-            border: "0.5px solid #1D9BF0",
-            background: "transparent",
-            borderRadius: 8,
-            padding: "5px 10px",
-          }}
-        >
-          Reschedule
-        </button>
+        {/* Inline date/time picker — expands when showPicker is true */}
+        {showPicker && (
+          <div
+            className="px-4 pb-4 flex flex-col gap-3"
+            style={{ borderTop: "0.5px solid #1F2933" }}
+          >
+            <div className="flex gap-2 pt-3">
+              {/* Date */}
+              <div className="flex-1 flex flex-col gap-1">
+                <label className="text-[11px] text-white/40">Date</label>
+                <input
+                  type="date"
+                  value={pickerDate}
+                  min={todayStr}
+                  onChange={(e) => setPickerDate(e.target.value)}
+                  className="w-full text-white text-[13px] outline-none rounded-lg px-3 py-2 transition-colors"
+                  style={{
+                    background: "#1F2933",
+                    border: "0.5px solid #2f3336",
+                    colorScheme: "dark",
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "#1D9BF0")}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = "#2f3336")}
+                />
+              </div>
+              {/* Time */}
+              <div className="flex-1 flex flex-col gap-1">
+                <label className="text-[11px] text-white/40">Time</label>
+                <input
+                  type="time"
+                  value={pickerTime}
+                  onChange={(e) => setPickerTime(e.target.value)}
+                  className="w-full text-white text-[13px] outline-none rounded-lg px-3 py-2 transition-colors"
+                  style={{
+                    background: "#1F2933",
+                    border: "0.5px solid #2f3336",
+                    colorScheme: "dark",
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = "#1D9BF0")}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = "#2f3336")}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowPicker(false)}
+                className="flex-1 text-white/60 hover:text-white transition-colors text-[13px] font-medium py-2 rounded-lg"
+                style={{ background: "#1F2933", border: "0.5px solid #2f3336" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleScheduleConfirm}
+                disabled={!pickerDate || !pickerTime}
+                className="flex-1 text-white hover:opacity-90 transition-opacity text-[13px] font-medium py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ background: "#1D9BF0", border: "none" }}
+              >
+                Confirm →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Re-add bottom border when picker is open */}
+        {showPicker && (
+          <div style={{ borderBottom: "0.5px solid #1F2933" }} />
+        )}
       </div>
 
       {/* ── Section 4: Action bar / Delete confirmation ── */}
@@ -412,7 +545,7 @@ function PopupContent({
         >
           {/* Edit */}
           <button
-            onClick={() => onEdit(post)}
+            onClick={handleFocusTextarea}
             className="text-white hover:opacity-80 transition-opacity"
             style={{
               flex: 1,
@@ -471,7 +604,7 @@ function PopupContent({
 /*  PostDetailPopup                                                     */
 /* ------------------------------------------------------------------ */
 export function PostDetailPopup(props: PostDetailPopupProps) {
-  const { onClose } = props;
+  const { onClose, onBack } = props;
 
   // Escape key to close
   useEffect(() => {

@@ -15,7 +15,13 @@ export async function apiFetch<T>(
     headers: { ...BASE_OPTS.headers, ...(init.headers ?? {}) },
   });
   if (!res.ok) {
-    const err = Object.assign(new Error(res.statusText), { status: res.status });
+    const body = await res.text().catch(() => "");
+    let message = res.statusText;
+    try {
+      const parsed = JSON.parse(body);
+      message = parsed.error ?? parsed.message ?? res.statusText;
+    } catch { /* ignore parse errors */ }
+    const err = Object.assign(new Error(message), { status: res.status });
     throw err;
   }
   const text = await res.text();

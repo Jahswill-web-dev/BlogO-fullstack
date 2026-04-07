@@ -44,6 +44,8 @@ export default function DashboardPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [showConnectXModal, setShowConnectXModal] = useState(false);
   const [dayPopupDate, setDayPopupDate] = useState<Date | null>(null);
+  const [detailSourceDay, setDetailSourceDay] = useState<Date | null>(null);
+  const [singlePostMode, setSinglePostMode] = useState(false);
 
   useEffect(() => {
     const fromOnboarding =
@@ -174,6 +176,8 @@ export default function DashboardPage() {
 
   const handleEditFromPopup = (post: Post) => {
     setDetailPost(null);
+    setDetailSourceDay(null);
+    setSinglePostMode(true);
     setSelectedPost(post);
   };
 
@@ -388,13 +392,13 @@ export default function DashboardPage() {
             : p
         )
       );
-      toast.error("Failed to schedule post. Please try again.");
+      toast.error((err as Error).message || "Failed to schedule post. Please try again.");
     }
   };
 
-  const selectedDayPosts = selectedPost?.scheduledDate
-    ? (postsByDay[dayKey(selectedPost.scheduledDate)] ?? [selectedPost])
-    : ([selectedPost].filter(Boolean) as Post[]);
+  const selectedDayPosts = singlePostMode || !selectedPost?.scheduledDate
+    ? ([selectedPost].filter(Boolean) as Post[])
+    : (postsByDay[dayKey(selectedPost.scheduledDate)] ?? [selectedPost]);
 
   return (
     <div className="min-h-screen bg-[#08060A] flex relative">
@@ -521,11 +525,22 @@ export default function DashboardPage() {
             key="post-detail"
             post={detailPost}
             user={user}
-            onClose={() => setDetailPost(null)}
+            onClose={() => { setDetailPost(null); setDetailSourceDay(null); }}
             onEdit={handleEditFromPopup}
             onDelete={handleDelete}
             onPostNow={handlePostNow}
             onContentSave={handleContentSave}
+            onSchedule={(id, date, content) => {
+              handleSave(id, content, date);
+              setDetailPost((prev) =>
+                prev?.id === id ? { ...prev, content, scheduledDate: date, status: "scheduled" } : prev
+              );
+            }}
+            onBack={detailSourceDay ? () => {
+              setDetailPost(null);
+              setDayPopupDate(detailSourceDay);
+              setDetailSourceDay(null);
+            } : undefined}
           />
         )}
       </AnimatePresence>
@@ -534,7 +549,7 @@ export default function DashboardPage() {
         <EditScheduleModal
           post={selectedPost}
           dayPosts={selectedDayPosts}
-          onClose={() => setSelectedPost(null)}
+          onClose={() => { setSelectedPost(null); setSinglePostMode(false); }}
           onSave={handleSave}
           initialFrequency={autoSchedule ? "Every 2 hours" : "Every 5 minutes"}
         />
@@ -581,6 +596,7 @@ export default function DashboardPage() {
             user={user}
             onClose={() => setDayPopupDate(null)}
             onPostClick={(post) => {
+              setDetailSourceDay(dayPopupDate);
               setDayPopupDate(null);
               setDetailPost(post);
             }}
