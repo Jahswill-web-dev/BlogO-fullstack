@@ -76,14 +76,51 @@ export function AutoSchedulePopover({
 }: AutoSchedulePopoverProps) {
   const today = useMemo(() => new Date(), []);
 
-  const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
-  const [calMonth, setCalMonth] = useState<Date>(() => new Date());
-  const [startTime, setStartTime] = useState("09:00");
-  const [frequencyHours, setFrequencyHours] = useState(3);
+  // Derive initial values from already-scheduled posts so the user sees their
+  // existing schedule pre-filled and only has to tweak what they want to change.
+  const [selectedDay, setSelectedDay] = useState<Date>(() => {
+    const first = posts
+      .filter((p) => p.status === "scheduled" && p.scheduledDate)
+      .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime())[0];
+    return first ? new Date(first.scheduledDate!) : new Date();
+  });
+
+  const [calMonth, setCalMonth] = useState<Date>(() => {
+    const first = posts
+      .filter((p) => p.status === "scheduled" && p.scheduledDate)
+      .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime())[0];
+    return first ? new Date(first.scheduledDate!) : new Date();
+  });
+
+  const [startTime, setStartTime] = useState<string>(() => {
+    const first = posts
+      .filter((p) => p.status === "scheduled" && p.scheduledDate)
+      .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime())[0];
+    if (!first) return "09:00";
+    const d = first.scheduledDate!;
+    return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  });
+
+  const [frequencyHours, setFrequencyHours] = useState<number>(() => {
+    const scheduled = posts
+      .filter((p) => p.status === "scheduled" && p.scheduledDate)
+      .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime());
+    if (scheduled.length < 2) return 3;
+    const gapHours =
+      (scheduled[1].scheduledDate!.getTime() - scheduled[0].scheduledDate!.getTime()) /
+      3_600_000;
+    // Snap to the nearest available option
+    const options = [1, 2, 3, 5, 12, 24];
+    return options.reduce((best, opt) =>
+      Math.abs(opt - gapHours) < Math.abs(best - gapHours) ? opt : best
+    );
+  });
 
   /* ---------- derived ---------- */
+  // Include draft AND already-scheduled posts so the user can redistribute them.
+  // Only exclude posts that have already been published.
   const unscheduledPosts = useMemo(
-    () => posts.filter((p) => p.status === "draft"),
+    () => posts.filter((p) => p.status !== "posted"),
     [posts]
   );
 
@@ -219,7 +256,7 @@ export function AutoSchedulePopover({
             Auto-schedule posts
           </p>
           <p className="text-[11px] text-white/40 mt-0.5">
-            {unscheduledPosts.length} unscheduled post
+            {unscheduledPosts.length} post
             {unscheduledPosts.length !== 1 ? "s" : ""} to distribute
           </p>
         </div>

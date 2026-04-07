@@ -20,6 +20,7 @@ import { CalendarCard } from "@/components/modules/CalendarCard";
 import { PostDetailPopup } from "@/components/modules/PostDetailPopup";
 import { ConnectXModal } from "@/components/modules/ConnectXModal";
 import { DayPostsPopup } from "@/components/modules/DayPostsPopup";
+import { AutoSchedulePopover } from "@/components/modules/AutoSchedulePopover";
 
 /* ------------------------------------------------------------------ */
 /*  Main Dashboard Page                                                 */
@@ -46,6 +47,7 @@ export default function DashboardPage() {
   const [dayPopupDate, setDayPopupDate] = useState<Date | null>(null);
   const [detailSourceDay, setDetailSourceDay] = useState<Date | null>(null);
   const [calendarSelectedDay, setCalendarSelectedDay] = useState<Date | null>(null);
+  const [showAutoScheduleModal, setShowAutoScheduleModal] = useState(false);
   const [singlePostMode, setSinglePostMode] = useState(false);
 
   useEffect(() => {
@@ -214,7 +216,8 @@ export default function DashboardPage() {
         const existing = prev.filter((p) => !onboardingIds.has(p.id));
         return [...existing, ...postsToSchedule];
       });
-      setSelectedPost(postsToSchedule[0]);
+      setOnboardingPosts(postsToSchedule);
+      setShowAutoScheduleModal(true);
     }
   };
 
@@ -242,6 +245,42 @@ export default function DashboardPage() {
       }
     } catch (err) {
       console.error("[Dashboard] DELETE failed:", err);
+    }
+  };
+
+  const handleUnschedule = async (id: string) => {
+    const post = posts.find((p) => p.id === id);
+    if (!post?.scheduledPostId) return;
+
+    // Optimistic update — revert to draft immediately
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, status: "draft" as const, scheduledPostId: undefined } : p
+      )
+    );
+    setDetailPost((prev) =>
+      prev?.id === id ? { ...prev, status: "draft" as const, scheduledPostId: undefined } : prev
+    );
+
+    try {
+      await api.cancelScheduledPost(post.scheduledPostId);
+      // Un-mark the CRUD post so it reappears as a plain draft
+      if (post.id !== post.scheduledPostId) {
+        await api.updatePost(post.id, { meta: { scheduled: false, scheduledPostId: null } });
+      }
+      toast.success("Post unscheduled — moved back to drafts.");
+    } catch (err) {
+      console.error("[Dashboard] Unschedule failed:", err);
+      // Revert optimistic update on failure
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === id ? { ...p, status: "scheduled" as const, scheduledPostId: post.scheduledPostId } : p
+        )
+      );
+      setDetailPost((prev) =>
+        prev?.id === id ? { ...prev, status: "scheduled" as const, scheduledPostId: post.scheduledPostId } : prev
+      );
+      toast.error("Failed to unschedule. Please try again.");
     }
   };
 
@@ -579,6 +618,7 @@ export default function DashboardPage() {
             onClose={() => { setDetailPost(null); setDetailSourceDay(null); }}
             onEdit={handleEditFromPopup}
             onDelete={handleDelete}
+            onUnschedule={handleUnschedule}
             onPostNow={handlePostNow}
             onContentSave={handleContentSave}
             onSchedule={(id, date, content) => {
@@ -622,6 +662,38 @@ export default function DashboardPage() {
               handleContentSave(id, content);
             }}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAutoScheduleModal && (
+          <motion.div
+            key="auto-schedule-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.65)" }}
+            onClick={(e) => { if (e.target === e.currentTarget) setShowAutoScheduleModal(false); }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              style={{ maxHeight: "90vh", overflowY: "auto" }}
+            >
+              <AutoSchedulePopover
+                posts={onboardingPosts}
+                onClose={() => setShowAutoScheduleModal(false)}
+                onConfirm={(scheduledPosts) => {
+                  handleBulkSchedule(scheduledPosts);
+                  setShowAutoScheduleModal(false);
+                }}
+              />
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

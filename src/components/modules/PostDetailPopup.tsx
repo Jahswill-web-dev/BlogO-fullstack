@@ -135,6 +135,7 @@ interface PostDetailPopupProps {
   onClose: () => void;
   onEdit: (post: Post) => void;
   onDelete: (id: string) => void;
+  onUnschedule: (id: string) => void;
   onPostNow: (id: string) => void;
   onContentSave: (id: string, content: string) => void;
   onSchedule: (id: string, date: Date, content: string) => void;
@@ -150,6 +151,7 @@ function PopupContent({
   user,
   onClose,
   onDelete,
+  onUnschedule,
   onPostNow,
   onContentSave,
   onSchedule,
@@ -560,23 +562,42 @@ function PopupContent({
             Edit
           </button>
 
-          {/* Delete */}
-          <button
-            onClick={handleDelete}
-            className="hover:opacity-80 transition-opacity"
-            style={{
-              flex: 1,
-              padding: "9px 0",
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#DC2626",
-              background: "#1F2933",
-              border: "1px solid #2f3336",
-            }}
-          >
-            Delete
-          </button>
+          {/* Unschedule (scheduled posts) / Delete (draft or posted) */}
+          {post.status === "scheduled" ? (
+            <button
+              onClick={() => { onUnschedule(post.id); onClose(); }}
+              className="hover:opacity-80 transition-opacity"
+              style={{
+                flex: 1,
+                padding: "9px 0",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "#F97316",
+                background: "#1F2933",
+                border: "1px solid #2f3336",
+              }}
+            >
+              Unschedule
+            </button>
+          ) : (
+            <button
+              onClick={handleDelete}
+              className="hover:opacity-80 transition-opacity"
+              style={{
+                flex: 1,
+                padding: "9px 0",
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 500,
+                color: "#DC2626",
+                background: "#1F2933",
+                border: "1px solid #2f3336",
+              }}
+            >
+              Delete
+            </button>
+          )}
 
           {/* Post now */}
           <button
