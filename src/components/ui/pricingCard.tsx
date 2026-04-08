@@ -11,6 +11,8 @@ type PricingCardProps = {
     features: string[];
     ctaLabel?: string;
     highlighted?: boolean;
+    onCtaClick?: () => void;
+    ctaDisabled?: boolean;
 };
 
 export function PricingCard({
@@ -22,6 +24,8 @@ export function PricingCard({
     features,
     ctaLabel = "Select Plan",
     highlighted = false,
+    onCtaClick,
+    ctaDisabled = false,
 }: PricingCardProps) {
     return (
         <div
@@ -84,11 +88,15 @@ export function PricingCard({
                     buttonLabel={ctaLabel}
                     className="w-full mx-auto"
                     innerClassName="w-full"
+                    onClick={onCtaClick}
+                    disabled={ctaDisabled}
                 />
             ) : (
                 <SolidButton
                     label={ctaLabel || "Select Plan"}
                     className="w-full mx-auto max-w-[181px]"
+                    onClick={onCtaClick}
+                    disabled={ctaDisabled}
                 />
             )}
         </div>

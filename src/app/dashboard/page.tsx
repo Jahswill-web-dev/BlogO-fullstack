@@ -51,6 +51,7 @@ export default function DashboardPage() {
     postsPerDay: number;
     scheduleDaysAhead: number;
     usedToday: number;
+    hasActiveSubscription: boolean;
   } | null>(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -201,8 +202,34 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!isReady) return;
     api.getUserPlan()
-      .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday }))
+      .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription ?? false }))
       .catch(() => setPlanData(null));
+  }, [isReady]);
+
+  // Poll for plan update after returning from Polar checkout
+  useEffect(() => {
+    if (!isReady) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgrade") !== "success") return;
+
+    // Remove the query param so a refresh doesn't re-trigger
+    window.history.replaceState({}, "", window.location.pathname);
+
+    let attempts = 0;
+    const poll = async () => {
+      attempts++;
+      try {
+        const d = await api.getUserPlan();
+        const upgraded = d.plan !== "creator" || d.hasActiveSubscription;
+        setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription ?? false });
+        if (upgraded || attempts >= 5) {
+          if (upgraded) toast.success("Plan upgraded! Your new limits are active.");
+          return;
+        }
+      } catch { /* ignore */ }
+      if (attempts < 5) setTimeout(poll, 1000);
+    };
+    poll();
   }, [isReady]);
 
   useEffect(() => {
@@ -962,10 +989,11 @@ export default function DashboardPage() {
       {showPlanModal && planData && (
         <PlanSwitcherModal
           currentPlan={planData.plan}
+          hasActiveSubscription={planData.hasActiveSubscription}
           onClose={() => setShowPlanModal(false)}
           onPlanChange={() => {
             api.getUserPlan()
-              .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday }))
+              .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription ?? false }))
               .catch(() => {});
           }}
         />

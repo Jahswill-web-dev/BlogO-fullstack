@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check } from "lucide-react";
+import { X, Check, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ type PlanKey = "creator" | "builder" | "authority";
 
 interface PlanSwitcherModalProps {
   currentPlan: PlanKey;
+  hasActiveSubscription: boolean;
   onClose: () => void;
   onPlanChange: () => void;
 }
@@ -51,10 +52,12 @@ const PLANS: {
 
 export function PlanSwitcherModal({
   currentPlan,
+  hasActiveSubscription,
   onClose,
   onPlanChange,
 }: PlanSwitcherModalProps) {
   const [switching, setSwitching] = useState<PlanKey | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -68,14 +71,32 @@ export function PlanSwitcherModal({
     if (plan === currentPlan || switching) return;
     setSwitching(plan);
     try {
-      await api.updateUserPlan(plan);
-      toast.success(`Switched to ${PLANS.find((p) => p.key === plan)?.name} plan`);
-      onPlanChange();
-      onClose();
+      if (plan === "creator") {
+        // Downgrade to free — direct update
+        await api.updateUserPlan("creator");
+        toast.success("Switched to Creator plan");
+        onPlanChange();
+        onClose();
+      } else {
+        // Paid plan — redirect to Polar checkout
+        const { checkoutUrl } = await api.checkout(plan);
+        window.location.href = checkoutUrl;
+      }
     } catch (err) {
-      toast.error((err as Error).message || "Failed to switch plan. Try again.");
-    } finally {
+      toast.error((err as Error).message || "Something went wrong. Try again.");
       setSwitching(null);
+    }
+  };
+
+  const handleManageBilling = async () => {
+    setPortalLoading(true);
+    try {
+      const { portalUrl } = await api.getBillingPortal();
+      window.open(portalUrl, "_blank");
+    } catch (err) {
+      toast.error((err as Error).message || "Could not open billing portal.");
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -189,7 +210,7 @@ export function PlanSwitcherModal({
                               borderTopColor: "transparent",
                             }}
                           />
-                          Switching…
+                          {plan.key === "creator" ? "Switching…" : "Redirecting…"}
                         </div>
                       ) : (
                         <span
@@ -199,7 +220,7 @@ export function PlanSwitcherModal({
                             color: "#9d8ee8",
                           }}
                         >
-                          Select {plan.name}
+                          {plan.key === "creator" ? `Select ${plan.name}` : `Upgrade to ${plan.name}`}
                         </span>
                       )}
                     </div>
@@ -208,6 +229,27 @@ export function PlanSwitcherModal({
               );
             })}
           </div>
+
+          {/* Manage Billing — only for active subscribers */}
+          {hasActiveSubscription && (
+            <div className="mt-5 pt-4 border-t" style={{ borderColor: "#1F2933" }}>
+              <button
+                onClick={handleManageBilling}
+                disabled={portalLoading}
+                className="flex items-center gap-2 text-sm text-white/50 hover:text-white/80 transition-colors disabled:opacity-50"
+              >
+                {portalLoading ? (
+                  <span
+                    className="inline-block w-3.5 h-3.5 rounded-full border-2 animate-spin flex-shrink-0"
+                    style={{ borderColor: "#5C3FED", borderTopColor: "transparent" }}
+                  />
+                ) : (
+                  <ExternalLink className="w-3.5 h-3.5" />
+                )}
+                Manage billing &amp; subscription
+              </button>
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>

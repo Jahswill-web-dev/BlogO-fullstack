@@ -189,6 +189,17 @@ export const api = {
 
   logout: () => apiFetch<void>("/auth/logout"),
 
+  /** Initiate Polar checkout — returns a redirect URL to Polar's payment page */
+  checkout: (planId: "builder" | "authority") =>
+    apiFetch<{ checkoutUrl: string }>("/api/checkout", {
+      method: "POST",
+      body: JSON.stringify({ planId }),
+    }),
+
+  /** Get Polar billing-portal URL for existing subscribers */
+  getBillingPortal: () =>
+    apiFetch<{ portalUrl: string }>("/api/portal"),
+
   /** Get the user's current plan, limits, and today's usage */
   getUserPlan: () =>
     apiFetch<{
@@ -197,6 +208,8 @@ export const api = {
       scheduleDaysAhead: number;
       usedToday: number;
       remainingToday: number;
+      hasActiveSubscription: boolean;
+      planExpiresAt: string | null;
     }>("/api/user/plan"),
 
   /** Update the authenticated user's subscription plan */

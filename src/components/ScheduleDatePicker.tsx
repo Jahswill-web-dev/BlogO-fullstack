@@ -17,10 +17,10 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 // Next-tier upgrade info keyed by current plan display name
 const NEXT_TIER: Record<
   string,
-  { scheduleDays: number; postsPerDay: number } | null
+  { scheduleDays: number; postsPerDay: number; planId: "builder" | "authority" } | null
 > = {
-  Creator: { scheduleDays: 7, postsPerDay: 7 },
-  Builder: { scheduleDays: 14, postsPerDay: 12 },
+  Creator: { scheduleDays: 7, postsPerDay: 7, planId: "builder" },
+  Builder: { scheduleDays: 14, postsPerDay: 12, planId: "authority" },
   Authority: null,
 };
 
@@ -206,6 +206,7 @@ export function ScheduleDatePicker({
             planName={planName}
             nextScheduleDays={nextTier.scheduleDays}
             nextPostsPerDay={nextTier.postsPerDay}
+            planId={nextTier.planId}
           />
         </div>
       )}

@@ -1,20 +1,36 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Lock } from "lucide-react";
-import Link from "next/link";
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 interface UpgradePromptProps {
   planName: string;
   nextScheduleDays: number;
   nextPostsPerDay: number;
+  planId: "builder" | "authority";
 }
 
 export function UpgradePrompt({
   planName,
   nextScheduleDays,
   nextPostsPerDay,
+  planId,
 }: UpgradePromptProps) {
+  const [loading, setLoading] = useState(false);
+
+  const handleUpgrade = async () => {
+    setLoading(true);
+    try {
+      const { checkoutUrl } = await api.checkout(planId);
+      window.location.href = checkoutUrl;
+    } catch (err) {
+      toast.error((err as Error).message || "Could not start checkout. Try again.");
+      setLoading(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -54,21 +70,39 @@ export function UpgradePrompt({
           ahead and generate{" "}
           <strong style={{ color: "#aaa" }}>{nextPostsPerDay} posts/day</strong>.
         </p>
-        <Link
-          href="/pricing"
+        <button
+          onClick={handleUpgrade}
+          disabled={loading}
           style={{
-            display: "inline-block",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
             background: "linear-gradient(135deg, #7c6cd4, #9d5fc0)",
             color: "#fff",
             borderRadius: 999,
             padding: "6px 14px",
             fontSize: 12,
             fontWeight: 600,
-            textDecoration: "none",
+            border: "none",
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
           }}
         >
+          {loading && (
+            <span
+              className="animate-spin"
+              style={{
+                display: "inline-block",
+                width: 10,
+                height: 10,
+                borderRadius: "50%",
+                border: "2px solid rgba(255,255,255,0.4)",
+                borderTopColor: "#fff",
+              }}
+            />
+          )}
           Upgrade Plan
-        </Link>
+        </button>
       </div>
     </div>
   );
