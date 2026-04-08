@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GradientButton } from "@/components/ui/buttons/gradientButton";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useAuth } from "@/hooks/useAuth";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { api } from "@/lib/api";
 import { FIXED_NICHES } from "@/lib/niches";
 
@@ -40,8 +40,9 @@ type FormData = {
 /* ------------------------------------------------------------------ */
 export default function StartupOnboarding() {
   const router = useRouter();
-  const { loggedIn, loading: authLoading } = useAuth();
+  const { isReady } = useProtectedRoute();
   const [step, setStep] = useState(0);
+  const [subStep, setSubStep] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({
@@ -56,12 +57,7 @@ export default function StartupOnboarding() {
   // "Other" free-text for audience
   const [audienceOther, setAudienceOther] = useState("");
 
-  // Auth guard
-  useEffect(() => {
-    if (!authLoading && !loggedIn) router.replace("/signin");
-  }, [authLoading, loggedIn, router]);
-
-  if (authLoading) return <LoadingSpinner />;
+  if (!isReady) return <LoadingSpinner />;
 
   const skipToPreview = () => setStep(4);
 
@@ -89,7 +85,7 @@ export default function StartupOnboarding() {
         productSolution:    formData.productHelps  || undefined,
       });
       await api.generateContentStrategy();
-      await api.generatePosts(10);
+      await api.generatePosts({ count: 4 });
       router.push("/dashboard?schedule=true");
     } catch {
       setGenError("Content generation failed. Please try again.");
@@ -114,16 +110,18 @@ export default function StartupOnboarding() {
         </button>
       )}
 
-      {/* ── Step 0 — Pick niche + focus area ── */}
-      {step === 0 && (
+      {/* ── Step 0a — Pick niche ── */}
+      {step === 0 && subStep === 0 && (
         <>
           <PageHeader />
           <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
-            <h2 className="text-white font-bold text-lg sm:text-xl mb-4">
+            <h2 className="text-white font-bold text-lg sm:text-xl mb-2">
               What Niche Content do you want to be known for?
             </h2>
+            <p className="text-gray-400 text-xs sm:text-sm mb-5">
+              Pick one to get started — you can always change it later.
+            </p>
 
-            {/* Niche chips */}
             <div className="flex flex-wrap gap-2 mb-6">
               {FIXED_NICHES.map((niche) => (
                 <button
@@ -147,41 +145,88 @@ export default function StartupOnboarding() {
               ))}
             </div>
 
-            {/* Focus area reveal */}
-            {formData.problem && (
-              <div className="border-t border-[#1F2933] pt-5 mb-5">
-                <p className="text-gray-400 text-xs sm:text-sm mb-3">
-                  Which area of{" "}
-                  <span className="text-white">{formData.problem}</span> do you
-                  want to focus on?
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedNiche?.focusAreas.map((area) => (
+            <div className="flex justify-end">
+              <GradientButton
+                buttonLabel="Continue"
+                className="px-5 sm:px-6 py-2 text-sm"
+                onClick={() => setSubStep(1)}
+                disabled={!formData.problem}
+              />
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Step 0b — Pick focus area ── */}
+      {step === 0 && subStep === 1 && (
+        <>
+          <PageHeader />
+          <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
+            {/* Selected niche badge */}
+            <div className="mb-4">
+              <span className="inline-flex items-center gap-1.5 bg-[#5C3FED]/20 border border-[#5C3FED]/40 text-[#a090ff] text-xs px-3 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5C3FED]" />
+                {formData.problem}
+              </span>
+            </div>
+
+            <h2 className="text-white font-bold text-lg sm:text-xl mb-1">
+              Pick your focus area
+            </h2>
+            <p className="text-gray-400 text-xs sm:text-sm mb-4">
+              Choose the one that best describes what you&apos;ll post about.
+            </p>
+
+            {/* Scrollable focus area list */}
+            <div className="max-h-72 overflow-y-auto pr-1 mb-5 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-[#1F2933] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#5C3FED]/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-[#5C3FED]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
+                {selectedNiche?.focusAreas.map((area) => {
+                  const selected = formData.nicheArea === area;
+                  return (
                     <button
                       key={area}
                       type="button"
                       onClick={() =>
                         setFormData((prev) => ({ ...prev, nicheArea: area }))
                       }
-                      className={`text-xs sm:text-sm rounded-full px-3 py-1.5 cursor-pointer transition border ${
-                        formData.nicheArea === area
-                          ? "bg-[#5C3FED]/20 border-[#5C3FED] text-white"
-                          : "bg-[#1F2933] border-transparent text-white hover:bg-[#263241]"
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition cursor-pointer border ${
+                        selected
+                          ? "bg-[#5C3FED]/10 border-[#5C3FED]/40 text-white"
+                          : "bg-transparent border-transparent text-gray-300 hover:bg-[#1F2933] hover:text-white"
                       }`}
                     >
-                      {area}
+                      {/* Radio circle */}
+                      <span
+                        className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition ${
+                          selected ? "border-[#5C3FED]" : "border-white/20"
+                        }`}
+                      >
+                        {selected && (
+                          <span className="w-2 h-2 rounded-full bg-[#5C3FED]" />
+                        )}
+                      </span>
+                      <span className="text-xs sm:text-sm leading-snug">{area}</span>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
 
-            <div className="flex justify-end mt-2">
+            <div className="flex justify-between items-center">
+              <button
+                onClick={() => {
+                  setSubStep(0);
+                  setFormData((prev) => ({ ...prev, nicheArea: "" }));
+                }}
+                className="text-white/60 hover:text-white text-sm transition"
+              >
+                Back
+              </button>
               <GradientButton
                 buttonLabel="Continue"
                 className="px-5 sm:px-6 py-2 text-sm"
                 onClick={() => setStep(1)}
-                disabled={!formData.problem || !formData.nicheArea}
+                disabled={!formData.nicheArea}
               />
             </div>
           </div>
@@ -230,7 +275,7 @@ export default function StartupOnboarding() {
 
             <div className="flex justify-between items-center mt-5 sm:mt-6">
               <button
-                onClick={() => setStep(0)}
+                onClick={() => { setStep(0); setSubStep(0); }}
                 className="text-white/60 hover:text-white text-sm transition"
               >
                 Back

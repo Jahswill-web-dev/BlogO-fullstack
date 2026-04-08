@@ -641,7 +641,7 @@ The BullMQ worker retries failed posts up to **3 times** with **exponential back
 
 | Plan | Posts / day | Schedule ahead |
 |------|-------------|----------------|
-| `creator` | 4 | 1 day (today only) |
+| `creator` | 4 | 3 days (today + 2 days) |
 | `builder` | 7 | 7 days (1 week) |
 | `authority` | 12 | 14 days (2 weeks) |
 
@@ -773,6 +773,33 @@ Returns the user's current plan, limits, and today's usage.
 
 **Errors:**
 - `500` — lookup failure
+
+---
+
+### `PATCH /api/user/plan`
+
+Updates the authenticated user's subscription plan.
+
+**Auth:** JWT required.
+
+**Body:**
+```json
+{ "plan": "builder" }
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `plan` | `string` | Yes | One of `"creator"`, `"builder"`, `"authority"` |
+
+**Response `200`:**
+```json
+{ "success": true, "plan": "builder" }
+```
+
+**Errors:**
+- `400` — invalid or missing `plan` value
+- `404` — user not found
+- `500` — update failure
 
 ---
 

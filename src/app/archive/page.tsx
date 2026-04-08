@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { DashboardSidebar } from "@/components/modules/DashboardSidebar";
 import {
@@ -103,18 +102,12 @@ function EditScheduleButton({ onClick }: { onClick: () => void }) {
 /*  Archive Page                                                        */
 /* ------------------------------------------------------------------ */
 export default function ArchivePage() {
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { user, isReady } = useProtectedRoute();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(
     () => new Date(2025, 0, 1) // start at Jan 2025 to match sample data
   );
   const [editGroup, setEditGroup] = useState<Post[] | null>(null);
-
-  // Auth guard
-  useEffect(() => {
-    if (!authLoading && !user) router.replace("/signin");
-  }, [authLoading, user, router]);
 
   // All posts (would come from API in production)
   const allPosts = useMemo(() => makeArchivePosts(), []);
@@ -141,7 +134,7 @@ export default function ArchivePage() {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b));
   }, [allPosts, currentMonth]);
 
-  if (authLoading) return <LoadingSpinner />;
+  if (!isReady) return <LoadingSpinner />;
 
   const monthLabel = currentMonth.toLocaleDateString(undefined, {
     month: "long",

@@ -199,6 +199,13 @@ export const api = {
       remainingToday: number;
     }>("/api/user/plan"),
 
+  /** Update the authenticated user's subscription plan */
+  updateUserPlan: (plan: "creator" | "builder" | "authority") =>
+    apiFetch<{ success: boolean; plan: string }>("/api/user/plan", {
+      method: "PATCH",
+      body: JSON.stringify({ plan }),
+    }),
+
   /** Get per-date generation usage for a list of ISO date strings */
   getGenerationStatus: (dates: string[]) =>
     apiFetch<{

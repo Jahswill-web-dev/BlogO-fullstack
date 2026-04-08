@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Menu, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useAuth } from "@/hooks/useAuth";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { api, ApiPost, UserProfile, ScheduledApiPost } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { GeneratePanel } from "@/components/GeneratePanel";
@@ -21,17 +21,14 @@ import { PostDetailPopup } from "@/components/modules/PostDetailPopup";
 import { ConnectXModal } from "@/components/modules/ConnectXModal";
 import { DayPostsPopup } from "@/components/modules/DayPostsPopup";
 import { AutoSchedulePopover } from "@/components/modules/AutoSchedulePopover";
+import { PlanSwitcherModal } from "@/components/modules/PlanSwitcherModal";
 
 /* ------------------------------------------------------------------ */
 /*  Main Dashboard Page                                                 */
 /* ------------------------------------------------------------------ */
 export default function DashboardPage() {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-
-  useEffect(() => {
-    if (!authLoading && !user) router.replace("/signin");
-  }, [authLoading, user, router]);
+  const { user, isReady } = useProtectedRoute();
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -52,10 +49,16 @@ export default function DashboardPage() {
   const [planData, setPlanData] = useState<{
     plan: "creator" | "builder" | "authority";
     postsPerDay: number;
+    scheduleDaysAhead: number;
     usedToday: number;
   } | null>(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
+  const [xConnected, setXConnected] = useState<boolean | null>(null);
 
   useEffect(() => {
+    if (!isReady) return;
+
     const fromOnboarding =
       new URLSearchParams(window.location.search).get("schedule") === "true";
 
@@ -175,17 +178,39 @@ export default function DashboardPage() {
         }
       }
     );
-  }, []); // run once on mount
+  }, [isReady]); // re-runs once isReady flips to true (authenticated)
 
   useEffect(() => {
-    api.getProfile().then(setUserProfile).catch(() => setUserProfile(null));
-  }, []);
+    if (!isReady) return;
+    api.getProfile()
+      .then((profile) => {
+        setUserProfile(profile);
+        setProfileLoaded(true);
+      })
+      .catch((err: unknown) => {
+        const status = (err as { status?: number }).status;
+        setUserProfile(null);
+        setProfileLoaded(true);
+        // 404 means this user has never completed onboarding — send them there now
+        if (status === 404) {
+          router.replace("/startup");
+        }
+      });
+  }, [isReady, router]);
 
   useEffect(() => {
+    if (!isReady) return;
     api.getUserPlan()
-      .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, usedToday: d.usedToday }))
+      .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday }))
       .catch(() => setPlanData(null));
-  }, []);
+  }, [isReady]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    api.checkXStatus()
+      .then(({ connected }) => setXConnected(connected))
+      .catch(() => setXConnected(false));
+  }, [isReady]);
 
   // postsByDay is still needed to compute selectedDayPosts for EditScheduleModal
   const postsByDay = useMemo(() => {
@@ -200,7 +225,7 @@ export default function DashboardPage() {
   }, [posts]);
 
   // Early return after all hooks
-  if (authLoading || postsLoading) return <LoadingSpinner />;
+  if (!isReady || postsLoading || !profileLoaded) return <LoadingSpinner />;
 
   const totalPosts = posts.length;
   const postedThisWeek = posts.filter((p) => {
@@ -300,8 +325,13 @@ export default function DashboardPage() {
     if (!post) return;
 
     // Check X connection status before attempting to post
+    if (xConnected === false) {
+      setShowConnectXModal(true);
+      return;
+    }
     try {
       const { connected } = await api.checkXStatus();
+      setXConnected(connected);
       if (!connected) {
         setShowConnectXModal(true);
         return;
@@ -381,9 +411,19 @@ export default function DashboardPage() {
       setAutoSchedule(false);
       setShowOnboardingModal(true);
       setShowGeneratePanel(false);
+      // Update usage count now that new posts have been generated
+      api.getUserPlan()
+        .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday }))
+        .catch(() => {});
     } catch (err) {
-      console.error("[Dashboard] Generate posts failed:", err);
-      // Re-throw so GeneratePanel can surface a 403 inline error
+      const status = (err as { status?: number }).status;
+      // 403 = expected business-logic rejection (daily limit / window exceeded).
+      // Don't console.error — Next.js dev overlay treats console.error(Error) as
+      // an unhandled error and shows the red overlay even when the error is caught.
+      if (status !== 403) {
+        console.error("[Dashboard] Generate posts failed:", err);
+      }
+      // Re-throw so GeneratePanel can surface the error inline.
       throw err;
     } finally {
       setIsGenerating(false);
@@ -392,6 +432,23 @@ export default function DashboardPage() {
 
   const handleBulkSchedule = async (scheduledPosts: Post[]) => {
     if (scheduledPosts.length === 0) return;
+
+    if (xConnected === false) {
+      setShowConnectXModal(true);
+      return;
+    }
+
+    if (planData) {
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() + planData.scheduleDaysAhead);
+      maxDate.setHours(23, 59, 59, 999);
+      const outOfWindow = scheduledPosts.some((p) => p.scheduledDate && p.scheduledDate > maxDate);
+      if (outOfWindow) {
+        const planLabel = { creator: "Creator", builder: "Builder", authority: "Authority" }[planData.plan] ?? planData.plan;
+        toast.error(`One or more posts are outside your ${planLabel} plan's ${planData.scheduleDaysAhead}-day scheduling window. Upgrade to schedule further ahead.`);
+        return;
+      }
+    }
 
     // Optimistic update
     setPosts((prev) =>
@@ -456,6 +513,22 @@ export default function DashboardPage() {
     const post = posts.find((p) => p.id === id);
     if (!post) return;
 
+    if (xConnected === false) {
+      setShowConnectXModal(true);
+      return;
+    }
+
+    if (planData) {
+      const maxDate = new Date();
+      maxDate.setDate(maxDate.getDate() + planData.scheduleDaysAhead);
+      maxDate.setHours(23, 59, 59, 999);
+      if (date > maxDate) {
+        const planLabel = { creator: "Creator", builder: "Builder", authority: "Authority" }[planData.plan] ?? planData.plan;
+        toast.error(`Your ${planLabel} plan can only schedule ${planData.scheduleDaysAhead} day(s) ahead. Upgrade to schedule further.`);
+        return;
+      }
+    }
+
     // Optimistic update
     setPosts((prev) =>
       prev.map((p) =>
@@ -517,7 +590,8 @@ export default function DashboardPage() {
           {/* Header card */}
           <div className="bg-[#0B0F19] rounded-xl border border-[#1F2933] mb-8">
             {/* Top bar */}
-            <div className="flex items-center justify-between px-4 py-3">
+            <div className="grid grid-cols-3 items-center px-4 py-3">
+              {/* Left — greeting */}
               <div className="flex items-center gap-3">
                 <button
                   className="lg:hidden text-white/60 hover:text-white flex-shrink-0"
@@ -536,7 +610,41 @@ export default function DashboardPage() {
                   <span className="sm:hidden text-white/50"> 👋</span>
                 </h1>
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Centre — plan indicator */}
+              <div className="flex items-center justify-center">
+                {planData && (() => {
+                  const PLAN_NAMES: Record<string, string> = { creator: "Creator", builder: "Builder", authority: "Authority" };
+                  return (
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: "#d6ccff",
+                          background: "#2d2650",
+                          border: "1px solid #9d8ee8",
+                          borderRadius: 999,
+                          padding: "3px 9px",
+                          whiteSpace: "nowrap",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {PLAN_NAMES[planData.plan] ?? planData.plan}
+                      </span>
+                      <button
+                        onClick={() => setShowPlanModal(true)}
+                        className="text-[11px] font-medium hover:opacity-80 transition-opacity"
+                        style={{ color: "#9d8ee8" }}
+                      >
+                        Change
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Right — create button */}
+              <div className="flex items-center justify-end">
                 <button
                   className="flex items-center gap-1.5 text-white rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity"
                   style={{ background: "#5C3FED" }}
@@ -679,6 +787,36 @@ export default function DashboardPage() {
             )}
           </AnimatePresence>
 
+          {/* X account not connected — banner */}
+          {xConnected === false && (
+            <div
+              className="mb-6 flex items-center justify-between gap-3 px-4 py-3 rounded-xl border"
+              style={{ background: "rgba(0,0,0,0.35)", borderColor: "#1F2933" }}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: "#000" }}
+                >
+                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-hidden="true">
+                    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-white leading-tight">Connect your X account</p>
+                  <p className="text-xs text-white/40 mt-0.5">Required to schedule and publish posts</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowConnectXModal(true)}
+                className="flex-shrink-0 text-xs font-semibold text-white px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+                style={{ background: "#5C3FED" }}
+              >
+                Connect
+              </button>
+            </div>
+          )}
+
           {/* Calendar */}
           <div>
             <CalendarCard
@@ -820,6 +958,18 @@ export default function DashboardPage() {
         isOpen={showConnectXModal}
         onClose={() => setShowConnectXModal(false)}
       />
+
+      {showPlanModal && planData && (
+        <PlanSwitcherModal
+          currentPlan={planData.plan}
+          onClose={() => setShowPlanModal(false)}
+          onPlanChange={() => {
+            api.getUserPlan()
+              .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday }))
+              .catch(() => {});
+          }}
+        />
+      )}
     </div>
   );
 }

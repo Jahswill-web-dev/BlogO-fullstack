@@ -189,14 +189,18 @@ function PanelContent({
       // Optimistic: increment usage count for the selected date
       onUsageUpdate(selectedScheduleDate);
     } catch (err: unknown) {
-      const e = err as { status?: number };
+      const e = err as { status?: number; message?: string };
       if (e.status === 403) {
         const dateStr = selectedScheduleDate.toLocaleDateString(undefined, {
           month: "short",
           day: "numeric",
         });
         setGenerationError(
-          `You've reached your limit for ${dateStr}. Upgrade your plan to generate more.`
+          `Daily limit reached for ${dateStr}. Upgrade your plan to generate more posts.`
+        );
+      } else {
+        setGenerationError(
+          e.message ?? "Generation failed. Please try again."
         );
       }
     }
