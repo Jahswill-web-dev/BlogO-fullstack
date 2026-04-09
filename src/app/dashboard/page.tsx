@@ -440,7 +440,7 @@ export default function DashboardPage() {
       setShowGeneratePanel(false);
       // Update usage count now that new posts have been generated
       api.getUserPlan()
-        .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday }))
+        .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription }))
         .catch(() => {});
     } catch (err) {
       const status = (err as { status?: number }).status;
