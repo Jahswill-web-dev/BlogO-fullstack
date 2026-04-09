@@ -1,6 +1,7 @@
 import { GradientButton } from "@/components/ui/buttons/gradientButton";
 import Pill from "@/components/ui/pill";
 import Image from "next/image";
+import Link from "next/link";
 
 export function Hero() {
     return (
@@ -21,7 +22,9 @@ export function Hero() {
                         </p>
                     </div>
                     {/* Gradient Button */}
-                    <GradientButton buttonLabel="Get Early Access" />
+                    <Link href="/pricing">
+                        <GradientButton buttonLabel="Start generating posts" />
+                    </Link>
                 </div>
                 {/* Image */}
                 <div>

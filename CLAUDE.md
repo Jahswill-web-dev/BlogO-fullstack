@@ -225,3 +225,6 @@ hover:shadow-[0_6px_16px_rgba(0,0,0,0.35)]
 - Never approximate brand colors with Tailwind defaults (e.g. don't use `purple-600` where `#5C3FED` is correct)
 - Always use the `cn()` helper from `@/lib/utils` for conditional classes
 - Mark new components `"use client"` only when they use hooks or browser APIs
+
+
+

@@ -1,5 +1,6 @@
 import { GradientButton } from "@/components/ui/buttons/gradientButton";
 import Image from "next/image";
+import Link from "next/link";
 
 export function CTASection() {
 
@@ -17,10 +18,12 @@ export function CTASection() {
                     HackrPost handles the writing, the scheduling, and the publishing, so you can focus on everything else.
                 </p>
                 <div>
-                    <GradientButton
-                        className="w-[275px] h-[55px] mx-auto font-bold text-[16px] cursor-pointer"
-                        buttonLabel="Get Early Access"
-                    />
+                    <Link href="/pricing">
+                        <GradientButton
+                            className="w-[275px] h-[55px] mx-auto font-bold text-[16px] cursor-pointer"
+                            buttonLabel="Start generating posts"
+                        />
+                    </Link>
                 </div>
             </div>
             {/* Image */}

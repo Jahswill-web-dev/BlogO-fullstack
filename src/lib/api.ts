@@ -190,7 +190,7 @@ export const api = {
   logout: () => apiFetch<void>("/auth/logout"),
 
   /** Initiate Polar checkout — returns a redirect URL to Polar's payment page */
-  checkout: (planId: "builder" | "authority") =>
+  checkout: (planId: "creator" | "builder" | "authority") =>
     apiFetch<{ checkoutUrl: string }>("/api/checkout", {
       method: "POST",
       body: JSON.stringify({ planId }),

@@ -47,17 +47,23 @@ export default function Navbar({ navClassName, mobileClassName }: NavbarProps) {
                 <div className="hidden md:flex items-center gap-8 text-gray-300 font-medium">
                     <Link href="#about" className="hover:text-white">About</Link>
                     <Link href="#features" className="hover:text-white">Features</Link>
-                    <Link href="#pricing" className="hover:text-white">Pricing</Link>
+                    <Link href="/pricing" className="hover:text-white">Pricing</Link>
                 </div>
 
                 {/* Right Side */}
                 <div className="flex items-center gap-4">
-                    {/* Desktop CTA */}
+                    {/* Desktop CTAs */}
+                    <Link
+                        href="/signin"
+                        className="hidden md:inline-block text-gray-300 font-medium hover:text-white"
+                    >
+                        Login
+                    </Link>
                     <Link
                         href="/pricing"
                         className="hidden md:inline-block"
                     >
-                        <GradientBorderButton buttonLabel="Get Early Access" />
+                        <GradientBorderButton buttonLabel="Sign up" />
                     </Link>
 
                     {/* Mobile Menu Button */}
@@ -91,10 +97,11 @@ export default function Navbar({ navClassName, mobileClassName }: NavbarProps) {
                         <Link href="/#features" onClick={() => setIsOpen(false)}>Features</Link>
                         <Link href="/pricing" onClick={() => setIsOpen(false)}>Pricing</Link>
 
-                        <Link
-                            href="/pricing"
-                        >
-                            <GradientBorderButton buttonLabel="Get Early Access" />
+                        <Link href="/signin" onClick={() => setIsOpen(false)} className="text-gray-300 hover:text-white">
+                            Login
+                        </Link>
+                        <Link href="/pricing" onClick={() => setIsOpen(false)}>
+                            <GradientBorderButton buttonLabel="Sign up" />
                         </Link>
                     </motion.div>
                 )}
