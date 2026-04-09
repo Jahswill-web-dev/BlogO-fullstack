@@ -9,8 +9,9 @@ export function ProblemSectionWrapper() {
                 <p>You already know you should be on X.</p>
                 <p>You've probably even tried AI tools to help.</p>
                 <p>
-                    But the output felt off. Stiff, generic, obviously machine written.
-                    So you edited it, rewrote it, or just didn't post it.
+                    But the output felt off. Stiff, generic, obviously{" "}
+                    <span className="font-bold text-[#10060A]">&ldquo;AI-generated&rdquo;</span>.
+                    So you edited it, rewrote it, or just didn&apos;t post it.
                 </p>
                 <p>
                     And that's the trap most creators are stuck in: Post bad AI content and damage your brand.

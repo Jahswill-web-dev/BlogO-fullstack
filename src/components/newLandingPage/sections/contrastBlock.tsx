@@ -13,7 +13,7 @@ export function ContrastBlock() {
             <div className="font-geist font-light text-lg sm:text-xl text-[#BABABA] max-w-2xl mx-auto space-y-3">
                 <p>Generators give you output.</p>
                 <p>
-                    A system keeps you showing up every day, in your niche, with content that sounds like you.
+                    A system keeps you showing up every day, in your niche, with content that sounds human.
                 </p>
             </div>
         </div>

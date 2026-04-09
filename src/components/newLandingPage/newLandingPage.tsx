@@ -9,7 +9,6 @@ import { ContrastBlock } from "./sections/contrastBlock";
 import { SolutionSection } from "./sections/solutionSection";
 import { ValueTable } from "./sections/valueTable";
 import { IdentityShift } from "./sections/identityShift";
-import { ContrastCopy } from "./sections/contrastCopy";
 import Image from "next/image";
 
 export default function NewLandingPage() {
@@ -73,13 +72,6 @@ export default function NewLandingPage() {
             >
                 <div className="max-w-7xl mx-auto h-full">
                     <IdentityShift />
-                </div>
-            </div>
-
-            {/* 8 — Contrast Copy */}
-            <div className="h-auto bg-[#10060A]">
-                <div className="max-w-7xl mx-auto px-6">
-                    <ContrastCopy />
                 </div>
             </div>
 
