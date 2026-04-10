@@ -33,7 +33,8 @@ export function Hero() {
                         src="/images/hero_frame.png"
                         width={400}
                         height={300}
-                        className="mb-auto w-[500px] h-[300px]"
+                        loading="eager"
+                        className="mb-auto w-[500px] h-auto"
                     />
                 </div>
             </div>

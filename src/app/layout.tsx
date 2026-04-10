@@ -5,7 +5,7 @@ import { Providers } from "@/components/Providers";
 
 
 export const metadata: Metadata = {
-  title: "BlogO",
+  title: "Hackrpost",
   description: "AI-powered content generation and scheduling for startups",
   icons: {
     icon: "/favicon.svg",
