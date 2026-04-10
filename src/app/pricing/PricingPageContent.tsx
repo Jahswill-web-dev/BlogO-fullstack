@@ -1,32 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
 import { PricingCard } from "@/components/ui/pricingCard";
 
 export function PricingPageContent() {
-  const [loadingPlan, setLoadingPlan] = useState<"builder" | "authority" | null>(null);
   const router = useRouter();
-
-  const handleCheckout = async (planId: "builder" | "authority") => {
-    if (loadingPlan) return;
-    setLoadingPlan(planId);
-    try {
-      await api.getMe();
-      const { checkoutUrl } = await api.checkout(planId);
-      window.location.href = checkoutUrl;
-    } catch (err) {
-      const status = (err as { status?: number }).status;
-      if (status === 401) {
-        router.push("/signin?redirect=/pricing");
-        return;
-      }
-      toast.error((err as Error).message || "Could not start checkout. Try again.");
-      setLoadingPlan(null);
-    }
-  };
 
   return (
     <div className="flex flex-wrap justify-center gap-6 p-10">
@@ -43,7 +21,6 @@ export function PricingPageContent() {
         ]}
         ctaLabel="Start Free Trial"
         onCtaClick={() => router.push("/signup")}
-        ctaDisabled={loadingPlan !== null}
       />
 
       {/* Builder Plan */}
@@ -59,10 +36,9 @@ export function PricingPageContent() {
           // "Long form content (280+ characters)",
           "Priority support",
         ]}
-        ctaLabel={loadingPlan === "builder" ? "Redirecting…" : "Start Free Trial"}
+        ctaLabel="Start Free Trial"
         highlighted={true}
-        onCtaClick={() => handleCheckout("builder")}
-        ctaDisabled={loadingPlan !== null}
+        onCtaClick={() => router.push("/signup")}
       />
 
       {/* Authority Plan */}
@@ -78,9 +54,8 @@ export function PricingPageContent() {
           // "Long form content (280+ characters)",
           "Priority support",
         ]}
-        ctaLabel={loadingPlan === "authority" ? "Redirecting…" : "Start Free Trial"}
-        onCtaClick={() => handleCheckout("authority")}
-        ctaDisabled={loadingPlan !== null}
+        ctaLabel="Start Free Trial"
+        onCtaClick={() => router.push("/signup")}
       />
     </div>
   );
