@@ -1,5 +1,24 @@
 export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+const AUTH_TOKEN_KEY = "auth_token";
+
+export function setAuthToken(token: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+  }
+}
+
+export function clearAuthToken(): void {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
+}
+
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
 const BASE_OPTS: RequestInit = {
   credentials: "include",
   headers: { "Content-Type": "application/json" },
@@ -9,10 +28,15 @@ export async function apiFetch<T>(
   path: string,
   init: RequestInit = {}
 ): Promise<T> {
+  const token = getAuthToken();
+  const authHeader: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+
   const res = await fetch(`${BASE}${path}`, {
     ...BASE_OPTS,
     ...init,
-    headers: { ...BASE_OPTS.headers, ...(init.headers ?? {}) },
+    headers: { ...BASE_OPTS.headers, ...authHeader, ...(init.headers ?? {}) },
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -187,7 +211,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
-  logout: () => apiFetch<void>("/auth/logout"),
+  logout: () => apiFetch<void>("/auth/logout").finally(clearAuthToken),
 
   /** Initiate Polar checkout — returns a redirect URL to Polar's payment page */
   checkout: (planId: "creator" | "builder" | "authority") =>

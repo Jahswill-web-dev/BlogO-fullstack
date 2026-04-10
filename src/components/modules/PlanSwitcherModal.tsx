@@ -14,6 +14,8 @@ interface PlanSwitcherModalProps {
   hasActiveSubscription: boolean;
   onClose: () => void;
   onPlanChange: () => void;
+  title?: string;
+  subtitle?: string;
 }
 
 const PLANS: {
@@ -55,6 +57,8 @@ export function PlanSwitcherModal({
   hasActiveSubscription,
   onClose,
   onPlanChange,
+  title = "Change plan",
+  subtitle = "Select a plan to switch to",
 }: PlanSwitcherModalProps) {
   const [switching, setSwitching] = useState<PlanKey | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -124,9 +128,9 @@ export function PlanSwitcherModal({
           {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-white">Change plan</h2>
+              <h2 className="text-lg font-semibold text-white">{title}</h2>
               <p className="text-sm text-white/40 mt-0.5">
-                Select a plan to switch to
+                {subtitle}
               </p>
             </div>
             <button

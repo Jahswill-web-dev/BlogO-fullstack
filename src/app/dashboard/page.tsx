@@ -56,6 +56,7 @@ export default function DashboardPage() {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [xConnected, setXConnected] = useState<boolean | null>(null);
+  const [planChosen, setPlanChosen] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -239,6 +240,14 @@ export default function DashboardPage() {
       .catch(() => setXConnected(false));
   }, [isReady]);
 
+  // Persist plan-chosen flag per user so the paywall only shows until
+  // the user has explicitly selected a plan (even the free Creator plan).
+  useEffect(() => {
+    if (user?._id) {
+      setPlanChosen(!!localStorage.getItem(`blogO_plan_chosen_${user._id}`));
+    }
+  }, [user]);
+
   // postsByDay is still needed to compute selectedDayPosts for EditScheduleModal
   const postsByDay = useMemo(() => {
     const map: Record<string, Post[]> = {};
@@ -351,6 +360,12 @@ export default function DashboardPage() {
     const post = posts.find((p) => p.id === id);
     if (!post) return;
 
+    // Paywall: require plan selection before posting to X
+    if (!planChosen && !planData?.hasActiveSubscription) {
+      setShowPlanModal(true);
+      return;
+    }
+
     // Check X connection status before attempting to post
     if (xConnected === false) {
       setShowConnectXModal(true);
@@ -460,6 +475,12 @@ export default function DashboardPage() {
   const handleBulkSchedule = async (scheduledPosts: Post[]) => {
     if (scheduledPosts.length === 0) return;
 
+    // Paywall: require plan selection before scheduling
+    if (!planChosen && !planData?.hasActiveSubscription) {
+      setShowPlanModal(true);
+      return;
+    }
+
     if (xConnected === false) {
       setShowConnectXModal(true);
       return;
@@ -539,6 +560,12 @@ export default function DashboardPage() {
   const handleSave = async (id: string, content: string, date: Date) => {
     const post = posts.find((p) => p.id === id);
     if (!post) return;
+
+    // Paywall: require plan selection before scheduling
+    if (!planChosen && !planData?.hasActiveSubscription) {
+      setShowPlanModal(true);
+      return;
+    }
 
     if (xConnected === false) {
       setShowConnectXModal(true);
@@ -991,7 +1018,14 @@ export default function DashboardPage() {
           currentPlan={planData.plan}
           hasActiveSubscription={planData.hasActiveSubscription}
           onClose={() => setShowPlanModal(false)}
+          title={!planChosen && !planData.hasActiveSubscription ? "Choose your plan" : "Change plan"}
+          subtitle={!planChosen && !planData.hasActiveSubscription ? "Pick a plan to unlock scheduling and posting to X" : "Select a plan to switch to"}
           onPlanChange={() => {
+            // Mark that the user has explicitly selected a plan
+            if (user?._id) {
+              localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
+              setPlanChosen(true);
+            }
             api.getUserPlan()
               .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription ?? false }))
               .catch(() => {});

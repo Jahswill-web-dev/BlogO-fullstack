@@ -1,20 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { PricingCard } from "@/components/ui/pricingCard";
 
 export function PricingPageContent() {
-  const [loadingPlan, setLoadingPlan] = useState<"creator" | "builder" | "authority" | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<"builder" | "authority" | null>(null);
+  const router = useRouter();
 
-  const handleCheckout = async (planId: "creator" | "builder" | "authority") => {
+  const handleCheckout = async (planId: "builder" | "authority") => {
     if (loadingPlan) return;
     setLoadingPlan(planId);
     try {
+      await api.getMe();
       const { checkoutUrl } = await api.checkout(planId);
       window.location.href = checkoutUrl;
     } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (status === 401) {
+        router.push("/signin?redirect=/pricing");
+        return;
+      }
       toast.error((err as Error).message || "Could not start checkout. Try again.");
       setLoadingPlan(null);
     }
@@ -26,14 +34,15 @@ export function PricingPageContent() {
       <PricingCard
         title="Creator Plan"
         originalPrice="$39/mo"
-        currentPrice="$19/mo"
+        currentPrice="$29/mo"
         priceNote="First 50 users only — then $39/mo"
         features={[
           "4 posts per day",
-          "Schedule up to 3 days ahead",
+          "120 posts/month",
+          "Schedule up to 3 days",
         ]}
-        ctaLabel={loadingPlan === "creator" ? "Redirecting…" : "Start Free Trial"}
-        onCtaClick={() => handleCheckout("creator")}
+        ctaLabel="Start Free Trial"
+        onCtaClick={() => router.push("/signup")}
         ctaDisabled={loadingPlan !== null}
       />
 
@@ -41,12 +50,13 @@ export function PricingPageContent() {
       <PricingCard
         title="Builder Plan"
         originalPrice="$59/mo"
-        currentPrice="$39/mo"
+        currentPrice="$49/mo"
         priceNote="First 50 users only — then $59/mo"
         features={[
           "7 posts per day",
-          "Schedule up to 1 week ahead",
-          "Long form content (280+ characters)",
+          "210 posts/month",
+          "Schedule up to 1 week",
+          // "Long form content (280+ characters)",
           "Priority support",
         ]}
         ctaLabel={loadingPlan === "builder" ? "Redirecting…" : "Start Free Trial"}
@@ -59,12 +69,13 @@ export function PricingPageContent() {
       <PricingCard
         title="Authority Plan"
         originalPrice="$79/mo"
-        currentPrice="$59/mo"
+        currentPrice="$69/mo"
         priceNote="First 50 users only — then $79/mo"
         features={[
           "12 posts per day",
-          "Schedule up to 2 weeks ahead",
-          "Long form content (280+ characters)",
+          "360 posts/month",
+          "Schedule up to 2 weeks",
+          // "Long form content (280+ characters)",
           "Priority support",
         ]}
         ctaLabel={loadingPlan === "authority" ? "Redirecting…" : "Start Free Trial"}

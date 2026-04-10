@@ -1,16 +1,48 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { FaXTwitter } from "react-icons/fa6";
+import { ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { api } from "@/lib/api";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function LoginPage() {
+    const router = useRouter();
+
+    // If the user is already authenticated (e.g. redirected back here after
+    // Google/X OAuth), send them to the right page instead of showing the form.
+    useEffect(() => {
+        api.getMe()
+            .then(() => {
+                api.getProfile()
+                    .then(() => router.replace("/dashboard"))
+                    .catch((err: unknown) => {
+                        if ((err as { status?: number }).status === 404) {
+                            router.replace("/startup");
+                        }
+                    });
+            })
+            .catch(() => {
+                // Not authenticated — stay on the page
+            });
+    }, [router]);
+
     return (
-        <div className="min-h-screen bg-[#0B0F19] flex items-center justify-center px-6">
+        <div className="min-h-screen bg-[#0B0F19] relative flex items-center justify-center px-6">
+
+            {/* Back button */}
+            <Link
+                href="/"
+                className="absolute top-6 left-6 flex items-center gap-1.5 text-white/50 hover:text-white transition-colors text-sm"
+            >
+                <ChevronLeft className="w-4 h-4" />
+                Back
+            </Link>
 
             {/* Container */}
             <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-8">
