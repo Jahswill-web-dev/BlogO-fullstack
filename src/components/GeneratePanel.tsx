@@ -271,36 +271,13 @@ function PanelContent({
         className="scrollbar-dark"
         style={{ flex: 1, overflowY: "auto", padding: "20px" }}
       >
-        {/* Fallback message if niche is missing */}
-        {!userNiche?.trim() ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              textAlign: "center",
-              gap: 12,
-            }}
-          >
-            <AlertTriangle size={32} color="#f59e0b" />
-            <p style={{ fontSize: 14, color: "#aaa", margin: 0 }}>
-              Please complete your onboarding to generate content.
-            </p>
-            <p style={{ fontSize: 12, color: "#555", margin: 0 }}>
-              Go back and select a niche to get started.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Usage bar (only when plan data is available) */}
-            {planData && todayLimit > 0 && (
-              <PlanUsageBar
-                used={todayUsed}
-                limit={todayLimit}
-                planName={PLAN_DISPLAY_NAMES[planData.plan]}
-              />
+          {/* Usage bar (only when plan data is available) */}
+          {planData && todayLimit > 0 && (
+            <PlanUsageBar
+              used={todayUsed}
+              limit={todayLimit}
+              planName={PLAN_DISPLAY_NAMES[planData.plan]}
+            />
             )}
 
             {/* Section: Niche */}
@@ -520,13 +497,10 @@ function PanelContent({
                 </span>
               </div>
             )}
-          </>
-        )}
       </div>
 
       {/* ---- Footer ---- */}
-      {userNiche?.trim() && (
-        <div
+      <div
           style={{
             borderTop: "1px solid #1e1e2a",
             padding: "12px 20px",
@@ -572,7 +546,6 @@ function PanelContent({
             {isGenerating ? "Generating…" : "Generate →"}
           </button>
         </div>
-      )}
 
       {/* ---- Focus area full-panel overlay ---- */}
       <AnimatePresence>
