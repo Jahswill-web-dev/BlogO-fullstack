@@ -224,6 +224,13 @@ export const api = {
   getBillingPortal: () =>
     apiFetch<{ portalUrl: string }>("/api/portal"),
 
+  /** Sync plan immediately after returning from Polar checkout */
+  syncPlan: () =>
+    apiFetch<{ plan: string; synced: boolean; message?: string }>(
+      "/api/user/sync-plan",
+      { method: "POST" }
+    ),
+
   /** Get the user's current plan, limits, and today's usage */
   getUserPlan: () =>
     apiFetch<{

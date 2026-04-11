@@ -217,7 +217,7 @@ export default function DashboardPage() {
       .catch(() => setPlanData(null));
   }, [isReady, user]);
 
-  // Poll for plan update after returning from Polar checkout
+  // Sync plan after returning from Polar checkout
   useEffect(() => {
     if (!isReady) return;
     const params = new URLSearchParams(window.location.search);
@@ -226,48 +226,60 @@ export default function DashboardPage() {
     // Remove the query param so a refresh doesn't re-trigger
     window.history.replaceState({}, "", window.location.pathname);
 
-    const MAX_ATTEMPTS = 10;
-    const POLL_INTERVAL_MS = 2000;
-    let attempts = 0;
     let cancelled = false;
-
     setIsActivating(true);
 
-    const poll = async () => {
-      if (cancelled) return;
-      attempts++;
+    (async () => {
       try {
-        const d = await api.getUserPlan();
+        const sync = await api.syncPlan();
         if (cancelled) return;
-        const upgraded = d.plan !== "creator" || d.hasActiveSubscription;
-        setPlanData({
-          plan: d.plan,
-          postsPerDay: d.postsPerDay,
-          scheduleDaysAhead: d.scheduleDaysAhead,
-          usedToday: d.usedToday,
-          hasActiveSubscription: d.hasActiveSubscription ?? false,
-        });
-        if (upgraded) {
-          setIsActivating(false);
+
+        if (sync.synced) {
+          const d = await api.getUserPlan();
+          if (cancelled) return;
+          setPlanData({
+            plan: d.plan,
+            postsPerDay: d.postsPerDay,
+            scheduleDaysAhead: d.scheduleDaysAhead,
+            usedToday: d.usedToday,
+            hasActiveSubscription: d.hasActiveSubscription ?? false,
+          });
           if (user?._id) {
             localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
             setPlanChosen(true);
           }
           toast.success("Plan upgraded! Your new limits are active.");
-          return;
+        } else {
+          // Webhook hasn't arrived yet — wait 3s then refetch
+          await new Promise((r) => setTimeout(r, 3000));
+          if (cancelled) return;
+          const d = await api.getUserPlan();
+          if (cancelled) return;
+          setPlanData({
+            plan: d.plan,
+            postsPerDay: d.postsPerDay,
+            scheduleDaysAhead: d.scheduleDaysAhead,
+            usedToday: d.usedToday,
+            hasActiveSubscription: d.hasActiveSubscription ?? false,
+          });
+          if (d.hasActiveSubscription) {
+            if (user?._id) {
+              localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
+              setPlanChosen(true);
+            }
+            toast.success("Plan upgraded! Your new limits are active.");
+          } else {
+            toast.info("Your payment was received. Plan activation may take a moment — refresh the page shortly.");
+          }
         }
-      } catch { /* ignore */ }
-      if (attempts >= MAX_ATTEMPTS) {
-        if (!cancelled) {
-          setIsActivating(false);
+      } catch {
+        if (!cancelled)
           toast.info("Your payment was received. Plan activation may take a moment — refresh the page shortly.");
-        }
-        return;
+      } finally {
+        if (!cancelled) setIsActivating(false);
       }
-      if (!cancelled) setTimeout(poll, POLL_INTERVAL_MS);
-    };
+    })();
 
-    poll();
     return () => { cancelled = true; };
   }, [isReady, user]);
 
