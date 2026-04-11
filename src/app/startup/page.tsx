@@ -59,7 +59,13 @@ export default function StartupOnboarding() {
 
   if (!isReady) return <LoadingSpinner />;
 
-  const skipToPreview = () => setStep(4);
+  const skipToPreview = () => {
+    // Set default audience if user skips Step 1
+    if (step === 1 && !formData.audience.trim()) {
+      setFormData((prev) => ({ ...prev, audience: "Other" }));
+    }
+    setStep(4);
+  };
 
   const handleProductChoice = (choice: "yes" | "no") => {
     setFormData((prev) => ({ ...prev, hasProduct: choice }));
@@ -73,6 +79,20 @@ export default function StartupOnboarding() {
       : formData.audience;
 
   const handleGenerate = async () => {
+    // Validate required fields before attempting generation
+    if (!formData.problem?.trim()) {
+      setGenError("Please select a niche before generating content.");
+      return;
+    }
+    if (!formData.nicheArea?.trim()) {
+      setGenError("Please select a focus area before generating content.");
+      return;
+    }
+    if (!resolvedAudience?.trim()) {
+      setGenError("Please select or enter a target audience.");
+      return;
+    }
+
     setGenerating(true);
     setGenError(null);
     try {
@@ -87,8 +107,20 @@ export default function StartupOnboarding() {
       await api.generateContentStrategy();
       await api.generatePosts({ count: 4 });
       router.push("/dashboard?schedule=true");
-    } catch {
-      setGenError("Content generation failed. Please try again.");
+    } catch (err) {
+      // Distinguish between validation errors and generation errors
+      if (err && typeof err === "object") {
+        const status = (err as { status?: number }).status;
+        if (status === 400 || status === 422) {
+          setGenError("Profile data validation failed. Please check your niche, focus area, and audience.");
+        } else if (status && status >= 500) {
+          setGenError("Content generation failed. Please try again later.");
+        } else {
+          setGenError("An unexpected error occurred. Please try again.");
+        }
+      } else {
+        setGenError("An unexpected error occurred. Please try again.");
+      }
       setGenerating(false);
     }
   };
@@ -100,8 +132,8 @@ export default function StartupOnboarding() {
       suppressHydrationWarning
       className="min-h-screen bg-gradient-to-b from-[#10060A] via-[#10060A] to-[#5C3FED] flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-16 relative"
     >
-      {/* Skip button */}
-      {step < 3 && (
+      {/* Skip button — only on optional steps (1: audience, 2: product) */}
+      {step > 0 && step < 3 && (
         <button
           onClick={skipToPreview}
           className="absolute top-4 right-4 sm:top-6 sm:right-6 bg-[#1F2933] text-white rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm hover:bg-[#263241] transition"

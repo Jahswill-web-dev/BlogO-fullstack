@@ -174,7 +174,7 @@ function PanelContent({
     selectedDateUsage.used >= selectedDateUsage.limit;
 
   const canGenerate =
-    !!selectedNiche && !!selectedFocus && !isGenerating && !isLimitReached;
+    !!selectedNiche?.trim() && !!selectedFocus?.trim() && !isGenerating && !isLimitReached;
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -271,16 +271,39 @@ function PanelContent({
         className="scrollbar-dark"
         style={{ flex: 1, overflowY: "auto", padding: "20px" }}
       >
-        {/* Usage bar (only when plan data is available) */}
-        {planData && todayLimit > 0 && (
-          <PlanUsageBar
-            used={todayUsed}
-            limit={todayLimit}
-            planName={PLAN_DISPLAY_NAMES[planData.plan]}
-          />
-        )}
+        {/* Fallback message if niche is missing */}
+        {!userNiche?.trim() ? (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              textAlign: "center",
+              gap: 12,
+            }}
+          >
+            <AlertTriangle size={32} color="#f59e0b" />
+            <p style={{ fontSize: 14, color: "#aaa", margin: 0 }}>
+              Please complete your onboarding to generate content.
+            </p>
+            <p style={{ fontSize: 12, color: "#555", margin: 0 }}>
+              Go back and select a niche to get started.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Usage bar (only when plan data is available) */}
+            {planData && todayLimit > 0 && (
+              <PlanUsageBar
+                used={todayUsed}
+                limit={todayLimit}
+                planName={PLAN_DISPLAY_NAMES[planData.plan]}
+              />
+            )}
 
-        {/* Section: Niche */}
+            {/* Section: Niche */}
         <p style={{ fontSize: 13, color: "#aaa", marginBottom: 14 }}>
           What Niche Content do you want to generate for?
         </p>
@@ -473,79 +496,83 @@ function PanelContent({
           />
         )}
 
-        {/* Inline generation error */}
-        {generationError && (
-          <div
-            style={{
-              background: "rgba(245, 158, 11, 0.08)",
-              border: "1px solid rgba(245, 158, 11, 0.3)",
-              borderRadius: 8,
-              padding: "10px 14px",
-              marginBottom: 4,
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 8,
-            }}
-          >
-            <AlertTriangle
-              size={14}
-              color="#f59e0b"
-              style={{ flexShrink: 0, marginTop: 1 }}
-            />
-            <span style={{ fontSize: 12, color: "#fbbf24", lineHeight: 1.5 }}>
-              {generationError}
-            </span>
-          </div>
+            {/* Inline generation error */}
+            {generationError && (
+              <div
+                style={{
+                  background: "rgba(245, 158, 11, 0.08)",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  borderRadius: 8,
+                  padding: "10px 14px",
+                  marginBottom: 4,
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 8,
+                }}
+              >
+                <AlertTriangle
+                  size={14}
+                  color="#f59e0b"
+                  style={{ flexShrink: 0, marginTop: 1 }}
+                />
+                <span style={{ fontSize: 12, color: "#fbbf24", lineHeight: 1.5 }}>
+                  {generationError}
+                </span>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {/* ---- Footer ---- */}
-      <div
-        style={{
-          borderTop: "1px solid #1e1e2a",
-          padding: "12px 20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          flexShrink: 0,
-        }}
-      >
-        <span
+      {userNiche?.trim() && (
+        <div
           style={{
-            fontSize: 12,
-            color: "#555",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {selectedNiche && selectedFocus
-            ? `${selectedNiche} · ${selectedFocus} · ${slideCount} posts · ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
-            : "Select a niche to get started"}
-        </span>
-        <button
-          onClick={handleGenerate}
-          disabled={!canGenerate}
-          style={{
-            background: canGenerate
-              ? "linear-gradient(135deg, #7c6cd4, #9d5fc0)"
-              : "#2a2a3a",
-            color: "#fff",
-            border: "none",
-            borderRadius: 999,
-            padding: "8px 20px",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: canGenerate ? "pointer" : "not-allowed",
-            opacity: canGenerate ? 1 : 0.4,
+            borderTop: "1px solid #1e1e2a",
+            padding: "12px 20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
             flexShrink: 0,
-            whiteSpace: "nowrap",
           }}
         >
-          {isGenerating ? "Generating…" : "Generate →"}
-        </button>
-      </div>
+          <span
+            style={{
+              fontSize: 12,
+              color: "#555",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {selectedNiche && selectedFocus
+              ? `${selectedNiche} · ${selectedFocus} · ${slideCount} posts · ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
+              : "Select a niche to get started"}
+          </span>
+          <button
+            onClick={handleGenerate}
+            disabled={!canGenerate}
+            style={{
+              background: canGenerate
+                ? "linear-gradient(135deg, #7c6cd4, #9d5fc0)"
+                : "#2a2a3a",
+              color: "#fff",
+              border: "none",
+              borderRadius: 999,
+              padding: "8px 20px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: canGenerate ? "pointer" : "not-allowed",
+              opacity: canGenerate ? 1 : 0.4,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {isGenerating ? "Generating…" : "Generate →"}
+          </button>
+        </div>
+      )}
 
       {/* ---- Focus area full-panel overlay ---- */}
       <AnimatePresence>
