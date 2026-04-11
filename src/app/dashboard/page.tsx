@@ -193,12 +193,8 @@ export default function DashboardPage() {
         const status = (err as { status?: number }).status;
         setUserProfile(null);
         setProfileLoaded(true);
-        // 404 means this user has never completed onboarding — send them there now
-        if (status === 404) {
-          router.replace("/startup");
-        }
       });
-  }, [isReady, router]);
+  }, [isReady]);
 
   useEffect(() => {
     if (!isReady) return;
