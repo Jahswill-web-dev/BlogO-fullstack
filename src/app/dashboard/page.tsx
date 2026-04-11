@@ -57,6 +57,7 @@ export default function DashboardPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [xConnected, setXConnected] = useState<boolean | null>(null);
   const [planChosen, setPlanChosen] = useState(false);
+  const [isActivating, setIsActivating] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
@@ -199,9 +200,22 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!isReady) return;
     api.getUserPlan()
-      .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription ?? false }))
+      .then((d) => {
+        setPlanData({
+          plan: d.plan,
+          postsPerDay: d.postsPerDay,
+          scheduleDaysAhead: d.scheduleDaysAhead,
+          usedToday: d.usedToday,
+          hasActiveSubscription: d.hasActiveSubscription ?? false,
+        });
+        // Auto-set planChosen so paid subscribers never hit the paywall
+        if (d.hasActiveSubscription && user?._id) {
+          localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
+          setPlanChosen(true);
+        }
+      })
       .catch(() => setPlanData(null));
-  }, [isReady]);
+  }, [isReady, user]);
 
   // Poll for plan update after returning from Polar checkout
   useEffect(() => {
@@ -212,22 +226,50 @@ export default function DashboardPage() {
     // Remove the query param so a refresh doesn't re-trigger
     window.history.replaceState({}, "", window.location.pathname);
 
+    const MAX_ATTEMPTS = 10;
+    const POLL_INTERVAL_MS = 2000;
     let attempts = 0;
+    let cancelled = false;
+
+    setIsActivating(true);
+
     const poll = async () => {
+      if (cancelled) return;
       attempts++;
       try {
         const d = await api.getUserPlan();
+        if (cancelled) return;
         const upgraded = d.plan !== "creator" || d.hasActiveSubscription;
-        setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription ?? false });
-        if (upgraded || attempts >= 5) {
-          if (upgraded) toast.success("Plan upgraded! Your new limits are active.");
+        setPlanData({
+          plan: d.plan,
+          postsPerDay: d.postsPerDay,
+          scheduleDaysAhead: d.scheduleDaysAhead,
+          usedToday: d.usedToday,
+          hasActiveSubscription: d.hasActiveSubscription ?? false,
+        });
+        if (upgraded) {
+          setIsActivating(false);
+          if (user?._id) {
+            localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
+            setPlanChosen(true);
+          }
+          toast.success("Plan upgraded! Your new limits are active.");
           return;
         }
       } catch { /* ignore */ }
-      if (attempts < 5) setTimeout(poll, 1000);
+      if (attempts >= MAX_ATTEMPTS) {
+        if (!cancelled) {
+          setIsActivating(false);
+          toast.info("Your payment was received. Plan activation may take a moment — refresh the page shortly.");
+        }
+        return;
+      }
+      if (!cancelled) setTimeout(poll, POLL_INTERVAL_MS);
     };
+
     poll();
-  }, [isReady]);
+    return () => { cancelled = true; };
+  }, [isReady, user]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -663,7 +705,17 @@ export default function DashboardPage() {
 
               {/* Centre — plan indicator */}
               <div className="flex items-center justify-center">
-                {planData && (() => {
+                {isActivating ? (
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block w-3 h-3 rounded-full border-2 animate-spin flex-shrink-0"
+                      style={{ borderColor: "#9d8ee8", borderTopColor: "transparent" }}
+                    />
+                    <span style={{ fontSize: 11, color: "#d6ccff", whiteSpace: "nowrap", fontWeight: 500 }}>
+                      Activating…
+                    </span>
+                  </div>
+                ) : planData ? (() => {
                   const PLAN_NAMES: Record<string, string> = { creator: "Creator", builder: "Builder", authority: "Authority" };
                   return (
                     <div className="flex items-center gap-1.5">
@@ -690,7 +742,7 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   );
-                })()}
+                })() : null}
               </div>
 
               {/* Right — create button */}
