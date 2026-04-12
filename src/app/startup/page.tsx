@@ -7,6 +7,7 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { api } from "@/lib/api";
 import { FIXED_NICHES } from "@/lib/niches";
+import { cn } from "@/lib/utils";
 
 const AUDIENCE_OPTIONS = [
   "Indie hackers",
@@ -24,8 +25,8 @@ type FormData = {
   problem: string;
   // maps to backend: targetAudience
   audience: string;
-  // maps to backend: focusArea
-  nicheArea: string;
+  // maps to backend: focusArea (joined as comma-separated string)
+  nicheAreas: string[];
   hasProduct: "yes" | "no" | null;
   // maps to backend: productDescription
   productDoes: string;
@@ -48,7 +49,7 @@ export default function StartupOnboarding() {
   const [formData, setFormData] = useState<FormData>({
     problem: "",
     audience: "",
-    nicheArea: "",
+    nicheAreas: [],
     hasProduct: null,
     productDoes: "",
     productFor: "",
@@ -84,8 +85,8 @@ export default function StartupOnboarding() {
       setGenError("Please select a niche before generating content.");
       return;
     }
-    if (!formData.nicheArea?.trim()) {
-      setGenError("Please select a focus area before generating content.");
+    if (!formData.nicheAreas.length) {
+      setGenError("Please select at least one focus area before generating content.");
       return;
     }
     if (!resolvedAudience?.trim()) {
@@ -99,7 +100,7 @@ export default function StartupOnboarding() {
       await api.saveProfile({
         userNiche:          formData.problem,
         targetAudience:     resolvedAudience,
-        focusArea:          formData.nicheArea,
+        focusArea:          formData.nicheAreas.join(","),
         productDescription: formData.productDoes  || undefined,
         productAudience:    formData.productFor    || undefined,
         productSolution:    formData.productHelps  || undefined,
@@ -163,7 +164,7 @@ export default function StartupOnboarding() {
                     setFormData((prev) => ({
                       ...prev,
                       problem: niche.name,
-                      nicheArea: "",
+                      nicheAreas: [],
                     }))
                   }
                   className={`text-sm rounded-full px-4 py-2 cursor-pointer transition border ${
@@ -203,38 +204,50 @@ export default function StartupOnboarding() {
             </div>
 
             <h2 className="text-white font-bold text-lg sm:text-xl mb-1">
-              Pick your focus area
+              Pick your focus areas
             </h2>
             <p className="text-gray-400 text-xs sm:text-sm mb-4">
-              Choose the one that best describes what you&apos;ll post about.
+              Choose up to 3 that best describe what you&apos;ll post about.
             </p>
 
             {/* Scrollable focus area list */}
             <div className="max-h-72 overflow-y-auto pr-1 mb-5 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-[#1F2933] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#5C3FED]/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-[#5C3FED]">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
                 {selectedNiche?.focusAreas.map((area) => {
-                  const selected = formData.nicheArea === area;
+                  const isChecked = formData.nicheAreas.includes(area);
                   return (
                     <button
                       key={area}
                       type="button"
                       onClick={() =>
-                        setFormData((prev) => ({ ...prev, nicheArea: area }))
+                        setFormData((prev) => ({
+                          ...prev,
+                          nicheAreas: isChecked
+                            ? prev.nicheAreas.filter((a) => a !== area)
+                            : prev.nicheAreas.length < 3
+                            ? [...prev.nicheAreas, area]
+                            : prev.nicheAreas,
+                        }))
                       }
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition cursor-pointer border ${
-                        selected
-                          ? "bg-[#5C3FED]/10 border-[#5C3FED]/40 text-white"
-                          : "bg-transparent border-transparent text-gray-300 hover:bg-[#1F2933] hover:text-white"
-                      }`}
+                      disabled={!isChecked && formData.nicheAreas.length >= 3}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition border",
+                        isChecked
+                          ? "bg-[#5C3FED]/10 border-[#5C3FED]/40 text-white cursor-pointer"
+                          : formData.nicheAreas.length >= 3
+                          ? "bg-transparent border-transparent text-gray-600 cursor-not-allowed"
+                          : "bg-transparent border-transparent text-gray-300 hover:bg-[#1F2933] hover:text-white cursor-pointer"
+                      )}
                     >
-                      {/* Radio circle */}
+                      {/* Checkbox */}
                       <span
-                        className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition ${
-                          selected ? "border-[#5C3FED]" : "border-white/20"
-                        }`}
+                        className={cn(
+                          "w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition",
+                          isChecked ? "border-[#5C3FED] bg-[#5C3FED]/20" : "border-white/20"
+                        )}
                       >
-                        {selected && (
-                          <span className="w-2 h-2 rounded-full bg-[#5C3FED]" />
+                        {isChecked && (
+                          <span className="w-2 h-2 rounded-sm bg-[#5C3FED]" />
                         )}
                       </span>
                       <span className="text-xs sm:text-sm leading-snug">{area}</span>
@@ -248,7 +261,7 @@ export default function StartupOnboarding() {
               <button
                 onClick={() => {
                   setSubStep(0);
-                  setFormData((prev) => ({ ...prev, nicheArea: "" }));
+                  setFormData((prev) => ({ ...prev, nicheAreas: [] }));
                 }}
                 className="text-white/60 hover:text-white text-sm transition"
               >
@@ -258,7 +271,7 @@ export default function StartupOnboarding() {
                 buttonLabel="Continue"
                 className="px-5 sm:px-6 py-2 text-sm"
                 onClick={() => setStep(1)}
-                disabled={!formData.nicheArea}
+                disabled={formData.nicheAreas.length === 0}
               />
             </div>
           </div>

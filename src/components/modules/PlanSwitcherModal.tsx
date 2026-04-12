@@ -96,7 +96,7 @@ export function PlanSwitcherModal({
     setPortalLoading(true);
     try {
       const { portalUrl } = await api.getBillingPortal();
-      window.open(portalUrl, "_blank");
+      window.location.href = portalUrl;
     } catch (err) {
       toast.error((err as Error).message || "Could not open billing portal.");
     } finally {

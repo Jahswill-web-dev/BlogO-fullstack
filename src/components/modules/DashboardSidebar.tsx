@@ -90,7 +90,7 @@ export function DashboardSidebar({
           />
         </nav>
         <div className="px-3 pb-4 space-y-1 border-t border-white/10 pt-4">
-          <NavItem icon={<Settings className="w-4 h-4" />} label="Settings" />
+          <NavItem icon={<Settings className="w-4 h-4" />} label="Settings" href="/settings" />
           <div className="flex items-center gap-3 px-3 py-2 mt-2">
             {user?.avatar ? (
               <Image

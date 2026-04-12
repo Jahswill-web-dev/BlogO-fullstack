@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Minus, Plus, ChevronLeft, AlertTriangle } from "lucide-react";
-import { FIXED_NICHES } from "@/lib/niches";
+import { motion } from "framer-motion";
+import { X, Minus, Plus, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
 import { PlanUsageBar } from "./PlanUsageBar";
 import { ScheduleDatePicker } from "./ScheduleDatePicker";
@@ -32,11 +31,12 @@ interface GeneratePanelProps {
   isOpen: boolean;
   onClose: () => void;
   userNiche: string;
+  userFocusAreas: string[];
   isGenerating?: boolean;
   targetDate?: Date;
   onGenerate: (params: {
     niche: string;
-    focusArea: string;
+    focusAreas: string[];
     slideCount: number;
     scheduledFor: Date;
   }) => Promise<void>;
@@ -116,6 +116,7 @@ const pillSelected: React.CSSProperties = {
 function PanelContent({
   onClose,
   userNiche,
+  userFocusAreas,
   onGenerate,
   isGenerating,
   planData,
@@ -126,6 +127,7 @@ function PanelContent({
 }: {
   onClose: () => void;
   userNiche: string;
+  userFocusAreas: string[];
   isGenerating?: boolean;
   planData: PlanData | null;
   usageByDate: Record<string, DateUsage>;
@@ -134,37 +136,21 @@ function PanelContent({
   onUsageUpdate: (date: Date) => void;
   onGenerate: GeneratePanelProps["onGenerate"];
 }) {
-  const [selectedNiche, setSelectedNiche] = useState(userNiche);
-  const [selectedFocus, setSelectedFocus] = useState(() => {
-    const niche = FIXED_NICHES.find((n) => n.name === userNiche);
-    return niche?.focusAreas[0] ?? "";
-  });
+  const [selectedFocus, setSelectedFocus] = useState(
+    () => userFocusAreas[0] ?? ""
+  );
   const [slideCount, setSlideCount] = useState(7);
-  const [showAllFocus, setShowAllFocus] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
 
-  // Re-initialise whenever the panel (re-)opens with a potentially different userNiche
+  // Re-initialise whenever the panel (re-)opens with a different niche/focus areas
   useEffect(() => {
-    setSelectedNiche(userNiche);
-    const niche = FIXED_NICHES.find((n) => n.name === userNiche);
-    setSelectedFocus(niche?.focusAreas[0] ?? "");
+    setSelectedFocus(userFocusAreas[0] ?? "");
     setSlideCount(7);
-    setShowAllFocus(false);
     setGenerationError(null);
-  }, [userNiche]);
-
-  const handleNicheSelect = (nicheName: string) => {
-    setSelectedNiche(nicheName);
-    const niche = FIXED_NICHES.find((n) => n.name === nicheName);
-    setSelectedFocus(niche?.focusAreas[0] ?? "");
-    setShowAllFocus(false);
-  };
+  }, [userNiche, userFocusAreas]);
 
   const decrement = () => setSlideCount((c) => Math.max(MIN_SLIDES, c - 1));
   const increment = () => setSlideCount((c) => Math.min(MAX_SLIDES, c + 1));
-
-  const currentFocusAreas =
-    FIXED_NICHES.find((n) => n.name === selectedNiche)?.focusAreas ?? [];
 
   // Determine if the selected date has hit its limit
   const selectedDateKey = toDateKey(selectedScheduleDate);
@@ -174,15 +160,15 @@ function PanelContent({
     selectedDateUsage.used >= selectedDateUsage.limit;
 
   const canGenerate =
-    !!selectedNiche?.trim() && !!selectedFocus?.trim() && !isGenerating && !isLimitReached;
+    !!userNiche?.trim() && !!selectedFocus?.trim() && !isGenerating && !isLimitReached;
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
     setGenerationError(null);
     try {
       await onGenerate({
-        niche: selectedNiche,
-        focusArea: selectedFocus,
+        niche: userNiche,
+        focusAreas: [selectedFocus],
         slideCount,
         scheduledFor: selectedScheduleDate,
       });
@@ -280,66 +266,19 @@ function PanelContent({
             />
             )}
 
-            {/* Section: Niche */}
-        <p style={{ fontSize: 13, color: "#aaa", marginBottom: 14 }}>
-          What Niche Content do you want to generate for?
-        </p>
-        <div
-          style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}
-        >
-          {FIXED_NICHES.map((niche) => (
-            <div
-              key={niche.name}
-              style={{ position: "relative", display: "inline-block" }}
-            >
-              {/* "your niche" badge — anchored to userNiche pill always */}
-              {niche.name === userNiche && (
-                <span
-                  style={{
-                    position: "absolute",
-                    top: -8,
-                    right: 6,
-                    fontSize: 9,
-                    background: "#7c6cd4",
-                    color: "#fff",
-                    borderRadius: 999,
-                    padding: "2px 6px",
-                    whiteSpace: "nowrap",
-                    pointerEvents: "none",
-                    lineHeight: 1.4,
-                    zIndex: 1,
-                  }}
-                >
-                  your niche
-                </span>
-              )}
-              <button
-                onClick={() => handleNicheSelect(niche.name)}
-                style={
-                  selectedNiche === niche.name ? pillSelected : pillBase
-                }
-              >
-                {niche.name}
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* Divider */}
-        <div style={{ borderTop: "1px solid #1e1e2a", marginBottom: 20 }} />
-
-        {/* Section: Focus area (shown only when a niche is selected) */}
-        {selectedNiche && (
+            {/* Section: Focus area — user's saved focus areas only */}
+        {userFocusAreas.length > 0 ? (
           <>
-            <p style={{ fontSize: 13, color: "#aaa", marginBottom: 14 }}>
-              Which area of{" "}
-              <strong style={{ color: "#fff" }}>{selectedNiche}</strong> do you
-              want to focus on?
+            <p style={{ fontSize: 13, color: "#aaa", marginBottom: 6 }}>
+              Focus area
+            </p>
+            <p style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>
+              {userNiche}
             </p>
             <div
-              style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}
+              style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}
             >
-              {currentFocusAreas.slice(0, 4).map((area) => (
+              {userFocusAreas.map((area) => (
                 <button
                   key={area}
                   onClick={() => setSelectedFocus(area)}
@@ -349,29 +288,13 @@ function PanelContent({
                 </button>
               ))}
             </div>
-
-            {/* View all link */}
-            <button
-              onClick={() => setShowAllFocus(true)}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                marginBottom: 24,
-                fontSize: 12,
-                color: "#9d8ee8",
-                cursor: "pointer",
-                textDecoration: "underline",
-                textUnderlineOffset: 3,
-                display: "block",
-              }}
-            >
-              View all ({currentFocusAreas.length})
-            </button>
-
             {/* Divider */}
             <div style={{ borderTop: "1px solid #1e1e2a", marginBottom: 20 }} />
           </>
+        ) : (
+          <p style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
+            No focus areas found. Update them in Settings.
+          </p>
         )}
 
         {/* Section: Post count */}
@@ -520,9 +443,9 @@ function PanelContent({
               whiteSpace: "nowrap",
             }}
           >
-            {selectedNiche && selectedFocus
-              ? `${selectedNiche} · ${selectedFocus} · ${slideCount} posts · ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
-              : "Select a niche to get started"}
+            {userNiche && selectedFocus
+              ? `${userNiche} · ${selectedFocus} · ${slideCount} posts · ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
+              : "Select a focus area to get started"}
           </span>
           <button
             onClick={handleGenerate}
@@ -547,147 +470,6 @@ function PanelContent({
           </button>
         </div>
 
-      {/* ---- Focus area full-panel overlay ---- */}
-      <AnimatePresence>
-        {showAllFocus && (
-          <motion.div
-            key="focus-overlay"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 32, stiffness: 300 }}
-            style={{
-              position: "absolute",
-              inset: 0,
-              background: "#13131a",
-              borderRadius: 14,
-              display: "flex",
-              flexDirection: "column",
-              zIndex: 10,
-            }}
-          >
-            {/* Overlay header */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "16px 20px",
-                borderBottom: "1px solid #1e1e2a",
-                flexShrink: 0,
-              }}
-            >
-              <button
-                onClick={() => setShowAllFocus(false)}
-                style={{
-                  width: 26,
-                  height: 26,
-                  background: "#1e1e2a",
-                  border: "1px solid #2a2a3a",
-                  borderRadius: 6,
-                  color: "#aaa",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) =>
-                  ((e.currentTarget as HTMLButtonElement).style.color = "#fff")
-                }
-                onMouseLeave={(e) =>
-                  ((e.currentTarget as HTMLButtonElement).style.color = "#aaa")
-                }
-              >
-                <ChevronLeft size={14} />
-              </button>
-              <div style={{ minWidth: 0 }}>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: "#fff",
-                    fontWeight: 600,
-                    margin: 0,
-                  }}
-                >
-                  {selectedNiche}
-                </p>
-                <p style={{ fontSize: 11, color: "#555", margin: 0 }}>
-                  {currentFocusAreas.length} focus areas
-                </p>
-              </div>
-            </div>
-
-            {/* Overlay scrollable list */}
-            <div
-              className="scrollbar-dark"
-              style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {currentFocusAreas.map((area) => (
-                  <button
-                    key={area}
-                    onClick={() => {
-                      setSelectedFocus(area);
-                      setShowAllFocus(false);
-                    }}
-                    style={{
-                      background: selectedFocus === area ? "#2d2650" : "#1e1e2a",
-                      border: `1px solid ${
-                        selectedFocus === area ? "#9d8ee8" : "#2e2e3e"
-                      }`,
-                      color: selectedFocus === area ? "#d6ccff" : "#ccc",
-                      borderRadius: 8,
-                      padding: "10px 14px",
-                      fontSize: 13,
-                      cursor: "pointer",
-                      textAlign: "left",
-                      transition:
-                        "border-color 0.15s, background 0.15s, color 0.15s",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (selectedFocus !== area) {
-                        (
-                          e.currentTarget as HTMLButtonElement
-                        ).style.background = "#232333";
-                        (
-                          e.currentTarget as HTMLButtonElement
-                        ).style.borderColor = "#3e3e5e";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (selectedFocus !== area) {
-                        (
-                          e.currentTarget as HTMLButtonElement
-                        ).style.background = "#1e1e2a";
-                        (
-                          e.currentTarget as HTMLButtonElement
-                        ).style.borderColor = "#2e2e3e";
-                      }
-                    }}
-                  >
-                    <span>{area}</span>
-                    {selectedFocus === area && (
-                      <span
-                        style={{
-                          width: 7,
-                          height: 7,
-                          borderRadius: 999,
-                          background: "#9d8ee8",
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -700,6 +482,7 @@ export function GeneratePanel({
   isOpen,
   onClose,
   userNiche,
+  userFocusAreas,
   onGenerate,
   isGenerating,
   targetDate,
@@ -781,6 +564,7 @@ export function GeneratePanel({
     <PanelContent
       onClose={onClose}
       userNiche={userNiche}
+      userFocusAreas={userFocusAreas}
       onGenerate={onGenerate}
       isGenerating={isGenerating}
       planData={planData}

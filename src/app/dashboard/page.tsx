@@ -40,6 +40,9 @@ export default function DashboardPage() {
   const [showGeneratePanel, setShowGeneratePanel] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const userFocusAreas: string[] = userProfile?.focusArea
+    ? userProfile.focusArea.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
   const [showConnectXModal, setShowConnectXModal] = useState(false);
   const [dayPopupDate, setDayPopupDate] = useState<Date | null>(null);
   const [detailSourceDay, setDetailSourceDay] = useState<Date | null>(null);
@@ -475,7 +478,7 @@ export default function DashboardPage() {
 
   const handleGenerateCarousel = async (params: {
     niche: string;
-    focusArea: string;
+    focusAreas: string[];
     slideCount: number;
     scheduledFor: Date;
   }) => {
@@ -485,7 +488,7 @@ export default function DashboardPage() {
     try {
       const res = await api.generatePost({
         niche: params.niche,
-        focusAreas: [params.focusArea],
+        focusAreas: params.focusAreas,
         count: params.slideCount,
         scheduledFor: scheduledForKey,
       });
@@ -1039,6 +1042,7 @@ export default function DashboardPage() {
             isOpen={showGeneratePanel}
             onClose={() => setShowGeneratePanel(false)}
             userNiche={userProfile?.userNiche ?? ""}
+            userFocusAreas={userFocusAreas}
             onGenerate={handleGenerateCarousel}
             isGenerating={isGenerating}
             targetDate={calendarSelectedDay ?? undefined}
