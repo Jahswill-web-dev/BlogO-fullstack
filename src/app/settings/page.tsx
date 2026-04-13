@@ -18,7 +18,6 @@ export default function SettingsPage() {
 
   const [selectedNiche, setSelectedNiche] = useState("");
   const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>([]);
-  const [targetAudience, setTargetAudience] = useState("");
 
   const [subStep, setSubStep] = useState<0 | 1>(0);
 
@@ -39,7 +38,6 @@ export default function SettingsPage() {
           : [];
         setSelectedNiche(profile.userNiche ?? "");
         setSelectedFocusAreas(parsed);
-        setTargetAudience(profile.targetAudience ?? "");
       })
       .catch(() => {
         setLoadError("Could not load your profile. Please try again.");
@@ -62,12 +60,15 @@ export default function SettingsPage() {
     try {
       await api.saveProfile({
         userNiche: selectedNiche,
-        targetAudience: targetAudience,
         focusArea: selectedFocusAreas.join(","),
       });
       setSaveSuccess(true);
-    } catch {
-      setSaveError("Failed to save changes. Please try again.");
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Failed to save changes. Please try again.";
+      setSaveError(message);
     } finally {
       setSaving(false);
     }

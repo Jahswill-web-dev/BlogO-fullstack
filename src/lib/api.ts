@@ -67,7 +67,7 @@ export type AuthUser = {
 /** Fields for POST /profile */
 export type UserProfilePayload = {
   userNiche: string;
-  targetAudience: string;
+  targetAudience?: string;
   focusArea: string;
   productName?: string;
   productDescription?: string;
@@ -79,7 +79,7 @@ export type UserProfilePayload = {
 export type UserProfile = {
   userId: string;
   userNiche: string;
-  targetAudience: string;
+  targetAudience?: string;
   focusArea: string;
   productName?: string;
   createdAt: string;
