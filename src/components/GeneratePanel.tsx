@@ -6,6 +6,7 @@ import { X, Minus, Plus, AlertTriangle } from "lucide-react";
 import { api } from "@/lib/api";
 import { PlanUsageBar } from "./PlanUsageBar";
 import { ScheduleDatePicker } from "./ScheduleDatePicker";
+import Link from "next/link";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                               */
@@ -257,16 +258,16 @@ function PanelContent({
         className="scrollbar-dark"
         style={{ flex: 1, overflowY: "auto", padding: "20px" }}
       >
-          {/* Usage bar (only when plan data is available) */}
-          {planData && todayLimit > 0 && (
-            <PlanUsageBar
-              used={todayUsed}
-              limit={todayLimit}
-              planName={PLAN_DISPLAY_NAMES[planData.plan]}
-            />
-            )}
+        {/* Usage bar (only when plan data is available) */}
+        {planData && todayLimit > 0 && (
+          <PlanUsageBar
+            used={todayUsed}
+            limit={todayLimit}
+            planName={PLAN_DISPLAY_NAMES[planData.plan]}
+          />
+        )}
 
-            {/* Section: Focus area — user's saved focus areas only */}
+        {/* Section: Focus area — user's saved focus areas only */}
         {userFocusAreas.length > 0 ? (
           <>
             <p style={{ fontSize: 13, color: "#aaa", marginBottom: 6 }}>
@@ -293,7 +294,7 @@ function PanelContent({
           </>
         ) : (
           <p style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
-            No focus areas found. Update them in Settings.
+            No focus areas found. Update them in <Link href="/settings" className="underline cursor-pointer">Settings.</Link>
           </p>
         )}
 
@@ -396,79 +397,79 @@ function PanelContent({
           />
         )}
 
-            {/* Inline generation error */}
-            {generationError && (
-              <div
-                style={{
-                  background: "rgba(245, 158, 11, 0.08)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
-                  borderRadius: 8,
-                  padding: "10px 14px",
-                  marginBottom: 4,
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 8,
-                }}
-              >
-                <AlertTriangle
-                  size={14}
-                  color="#f59e0b"
-                  style={{ flexShrink: 0, marginTop: 1 }}
-                />
-                <span style={{ fontSize: 12, color: "#fbbf24", lineHeight: 1.5 }}>
-                  {generationError}
-                </span>
-              </div>
-            )}
+        {/* Inline generation error */}
+        {generationError && (
+          <div
+            style={{
+              background: "rgba(245, 158, 11, 0.08)",
+              border: "1px solid rgba(245, 158, 11, 0.3)",
+              borderRadius: 8,
+              padding: "10px 14px",
+              marginBottom: 4,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 8,
+            }}
+          >
+            <AlertTriangle
+              size={14}
+              color="#f59e0b"
+              style={{ flexShrink: 0, marginTop: 1 }}
+            />
+            <span style={{ fontSize: 12, color: "#fbbf24", lineHeight: 1.5 }}>
+              {generationError}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* ---- Footer ---- */}
       <div
+        style={{
+          borderTop: "1px solid #1e1e2a",
+          padding: "12px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexShrink: 0,
+        }}
+      >
+        <span
           style={{
-            borderTop: "1px solid #1e1e2a",
-            padding: "12px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexShrink: 0,
+            fontSize: 12,
+            color: "#555",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          <span
-            style={{
-              fontSize: 12,
-              color: "#555",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {userNiche && selectedFocus
-              ? `${userNiche} · ${selectedFocus} · ${slideCount} posts · ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
-              : "Select a focus area to get started"}
-          </span>
-          <button
-            onClick={handleGenerate}
-            disabled={!canGenerate}
-            style={{
-              background: canGenerate
-                ? "linear-gradient(135deg, #7c6cd4, #9d5fc0)"
-                : "#2a2a3a",
-              color: "#fff",
-              border: "none",
-              borderRadius: 999,
-              padding: "8px 20px",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: canGenerate ? "pointer" : "not-allowed",
-              opacity: canGenerate ? 1 : 0.4,
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {isGenerating ? "Generating…" : "Generate →"}
-          </button>
-        </div>
+          {userNiche && selectedFocus
+            ? `${userNiche} · ${selectedFocus} · ${slideCount} posts · ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
+            : "Select a focus area to get started"}
+        </span>
+        <button
+          onClick={handleGenerate}
+          disabled={!canGenerate}
+          style={{
+            background: canGenerate
+              ? "linear-gradient(135deg, #7c6cd4, #9d5fc0)"
+              : "#2a2a3a",
+            color: "#fff",
+            border: "none",
+            borderRadius: 999,
+            padding: "8px 20px",
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: canGenerate ? "pointer" : "not-allowed",
+            opacity: canGenerate ? 1 : 0.4,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {isGenerating ? "Generating…" : "Generate →"}
+        </button>
+      </div>
 
     </div>
   );
