@@ -137,15 +137,15 @@ function PanelContent({
   onUsageUpdate: (date: Date) => void;
   onGenerate: GeneratePanelProps["onGenerate"];
 }) {
-  const [selectedFocus, setSelectedFocus] = useState(
-    () => userFocusAreas[0] ?? ""
+  const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>(
+    () => (userFocusAreas[0] ? [userFocusAreas[0]] : [])
   );
   const [slideCount, setSlideCount] = useState(7);
   const [generationError, setGenerationError] = useState<string | null>(null);
 
   // Re-initialise whenever the panel (re-)opens with a different niche/focus areas
   useEffect(() => {
-    setSelectedFocus(userFocusAreas[0] ?? "");
+    setSelectedFocusAreas(userFocusAreas[0] ? [userFocusAreas[0]] : []);
     setSlideCount(7);
     setGenerationError(null);
   }, [userNiche, userFocusAreas]);
@@ -161,7 +161,18 @@ function PanelContent({
     selectedDateUsage.used >= selectedDateUsage.limit;
 
   const canGenerate =
-    !!userNiche?.trim() && !!selectedFocus?.trim() && !isGenerating && !isLimitReached;
+    !!userNiche?.trim() &&
+    selectedFocusAreas.length > 0 &&
+    !isGenerating &&
+    !isLimitReached;
+
+  const toggleFocusArea = (area: string) => {
+    setSelectedFocusAreas((prev) =>
+      prev.includes(area)
+        ? prev.filter((item) => item !== area)
+        : [...prev, area]
+    );
+  };
 
   const handleGenerate = async () => {
     if (!canGenerate) return;
@@ -169,7 +180,7 @@ function PanelContent({
     try {
       await onGenerate({
         niche: userNiche,
-        focusAreas: [selectedFocus],
+        focusAreas: selectedFocusAreas,
         slideCount,
         scheduledFor: selectedScheduleDate,
       });
@@ -271,10 +282,10 @@ function PanelContent({
         {userFocusAreas.length > 0 ? (
           <>
             <p style={{ fontSize: 13, color: "#aaa", marginBottom: 6 }}>
-              Focus area
+              Focus areas
             </p>
             <p style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>
-              {userNiche}
+              {userNiche} - Select one or more
             </p>
             <div
               style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}
@@ -282,8 +293,8 @@ function PanelContent({
               {userFocusAreas.map((area) => (
                 <button
                   key={area}
-                  onClick={() => setSelectedFocus(area)}
-                  style={selectedFocus === area ? pillSelected : pillBase}
+                  onClick={() => toggleFocusArea(area)}
+                  style={selectedFocusAreas.includes(area) ? pillSelected : pillBase}
                 >
                   {area}
                 </button>
@@ -444,9 +455,9 @@ function PanelContent({
             whiteSpace: "nowrap",
           }}
         >
-          {userNiche && selectedFocus
-            ? `${userNiche} · ${selectedFocus} · ${slideCount} posts · ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
-            : "Select a focus area to get started"}
+          {userNiche && selectedFocusAreas.length > 0
+            ? `${userNiche} - ${selectedFocusAreas.join(", ")} - ${slideCount} posts - ${selectedScheduleDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}`
+            : "Select one or more focus areas to get started"}
         </span>
         <button
           onClick={handleGenerate}
