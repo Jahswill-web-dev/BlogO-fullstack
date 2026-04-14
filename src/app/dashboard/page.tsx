@@ -201,6 +201,18 @@ export default function DashboardPage() {
   }, [isReady]);
 
   useEffect(() => {
+    if (!isReady || !showGeneratePanel) return;
+
+    api.getProfile()
+      .then((profile) => {
+        setUserProfile(profile);
+      })
+      .catch(() => {
+        // Keep the last loaded profile if this refresh fails.
+      });
+  }, [isReady, showGeneratePanel]);
+
+  useEffect(() => {
     if (!isReady) return;
     api.getUserPlan()
       .then((d) => {

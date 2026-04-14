@@ -77,12 +77,18 @@ export type UserProfilePayload = {
 
 /** Returned by GET /profile */
 export type UserProfile = {
+  _id?: string;
   userId: string;
   userNiche: string;
   targetAudience?: string;
   focusArea: string;
   productName?: string;
   createdAt: string;
+};
+
+type GetProfileResponse = {
+  success: boolean;
+  profile: UserProfile;
 };
 
 /** Returned by GET /posts */
@@ -114,7 +120,10 @@ export const api = {
   getMe: () => apiFetch<AuthUser>("/auth/me"),
 
   /** Retrieve current user's niche/audience profile */
-  getProfile: () => apiFetch<UserProfile>("/profile"),
+  getProfile: async () => {
+    const response = await apiFetch<GetProfileResponse>("/profile");
+    return response.profile;
+  },
 
   /** Save onboarding form data as the user's niche/audience profile */
   saveProfile: (body: UserProfilePayload) =>
