@@ -5,7 +5,7 @@ export default function Footer() {
     return (
         <div className="w-full">
             <div>
-                <div className="flex flex-row justify-between text-[#D8D8D8] font-geist font-medium">
+                <div className="flex flex-col justify-between gap-10 text-[#D8D8D8] font-geist font-medium md:flex-row">
                     {/* texts.. */}
                     <div className="flex flex-col gap-2">
                         <p>No trend-chasing. </p>
@@ -14,16 +14,18 @@ export default function Footer() {
                     </div>
                     {/* Nav Links */}
                     <div className="flex flex-col gap-4">
-                        <Link href="#about">About</Link>
-                        <Link href="#features">Features</Link>
+                        <Link href="/#about">About</Link>
+                        <Link href="/#features">Features</Link>
                         <Link href="/pricing">Pricing</Link>
+                        <Link href="/privacy">Privacy Policy</Link>
+                        <Link href="/terms">Terms & Conditions</Link>
                     </div>
 
                 </div>
                 {/* Logo */}
                 <div>
                     <Image src="/large_logo.svg" alt="Logo" width={500} height={500}
-                    className="h-[195px] w-[1000px]"
+                    className="h-auto w-full max-w-[1000px]"
                     />
                 </div>
             </div>
