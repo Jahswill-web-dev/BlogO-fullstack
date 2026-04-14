@@ -284,7 +284,7 @@ function PanelContent({
             <p style={{ fontSize: 13, color: "#aaa", marginBottom: 6 }}>
               Focus areas
             </p>
-            <p style={{ fontSize: 11, color: "#555", marginBottom: 14 }}>
+            <p style={{ fontSize: 11, color: "#ffff", marginBottom: 14 }}>
               {userNiche} - Select one or more
             </p>
             <div
