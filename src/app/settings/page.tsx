@@ -74,6 +74,10 @@ export default function SettingsPage() {
     }
   };
 
+  const handleGoToDashboard = () => {
+    router.push("/dashboard");
+  };
+
   if (!isReady || profileLoading) return <LoadingSpinner />;
 
   if (loadError) {
@@ -221,9 +225,28 @@ export default function SettingsPage() {
             <p className="text-red-400 text-sm mb-3">{saveError}</p>
           )}
           {saveSuccess && (
-            <p className="text-green-400 text-sm mb-3">
-              Settings saved successfully.
-            </p>
+            <div className="mb-4 rounded-xl border border-[#5C3FED]/40 bg-[#5C3FED]/10 p-4">
+              <p className="text-white text-sm font-medium">
+                Changes saved successfully.
+              </p>
+              <p className="mt-1 text-gray-300 text-xs sm:text-sm">
+                Your niche and focus areas are updated. Go to your dashboard and start generating posts.
+              </p>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <GradientButton
+                  buttonLabel="Go to Dashboard"
+                  className="px-5 py-2 text-sm"
+                  onClick={handleGoToDashboard}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSaveSuccess(false)}
+                  className="rounded-[4px] border border-[#1F2933] px-4 py-2 text-sm text-gray-300 transition hover:bg-[#1F2933] hover:text-white"
+                >
+                  Stay here
+                </button>
+              </div>
+            </div>
           )}
 
           <div className="flex justify-between items-center">
