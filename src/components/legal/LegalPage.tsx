@@ -3,16 +3,16 @@ import Navbar from "@/components/modules/navbar";
 
 type LegalSection = {
   title: string;
-  paragraphs?: string[];
-  items?: string[];
+  paragraphs?: readonly string[];
+  items?: readonly string[];
 };
 
 type LegalPageProps = {
   eyebrow: string;
   title: string;
   lastUpdated: string;
-  intro: string[];
-  sections: LegalSection[];
+  intro: readonly string[];
+  sections: readonly LegalSection[];
 };
 
 export function LegalPage({
