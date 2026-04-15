@@ -1,12 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Menu, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
-import { api, ApiPost, UserProfile, ScheduledApiPost } from "@/lib/api";
+import { useTrialAccess } from "@/hooks/useTrialAccess";
+import { api, ApiPost, PlanKey, UserProfile, ScheduledApiPost } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { GeneratePanel } from "@/components/GeneratePanel";
 import { DashboardSidebar } from "@/components/modules/DashboardSidebar";
@@ -27,7 +27,6 @@ import { PlanSwitcherModal } from "@/components/modules/PlanSwitcherModal";
 /*  Main Dashboard Page                                                 */
 /* ------------------------------------------------------------------ */
 export default function DashboardPage() {
-  const router = useRouter();
   const { user, isReady } = useProtectedRoute();
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
@@ -49,18 +48,21 @@ export default function DashboardPage() {
   const [calendarSelectedDay, setCalendarSelectedDay] = useState<Date | null>(null);
   const [showAutoScheduleModal, setShowAutoScheduleModal] = useState(false);
   const [singlePostMode, setSinglePostMode] = useState(false);
-  const [planData, setPlanData] = useState<{
-    plan: "creator" | "builder" | "authority";
-    postsPerDay: number;
-    scheduleDaysAhead: number;
-    usedToday: number;
-    hasActiveSubscription: boolean;
-  } | null>(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [xConnected, setXConnected] = useState<boolean | null>(null);
-  const [planChosen, setPlanChosen] = useState(false);
   const [isActivating, setIsActivating] = useState(false);
+  const {
+    accessStatus: planData,
+    loading: accessLoading,
+    paywall,
+    showPaywall,
+    trialCountdownLabel,
+    refreshAccessStatus,
+    ensureAccess,
+    handleAccessError,
+    closePaywall,
+  } = useTrialAccess(isReady);
 
   useEffect(() => {
     if (!isReady) return;
@@ -193,8 +195,7 @@ export default function DashboardPage() {
         setUserProfile(profile);
         setProfileLoaded(true);
       })
-      .catch((err: unknown) => {
-        const status = (err as { status?: number }).status;
+      .catch(() => {
         setUserProfile(null);
         setProfileLoaded(true);
       });
@@ -211,26 +212,6 @@ export default function DashboardPage() {
         // Keep the last loaded profile if this refresh fails.
       });
   }, [isReady, showGeneratePanel]);
-
-  useEffect(() => {
-    if (!isReady) return;
-    api.getUserPlan()
-      .then((d) => {
-        setPlanData({
-          plan: d.plan,
-          postsPerDay: d.postsPerDay,
-          scheduleDaysAhead: d.scheduleDaysAhead,
-          usedToday: d.usedToday,
-          hasActiveSubscription: d.hasActiveSubscription ?? false,
-        });
-        // Auto-set planChosen so paid subscribers never hit the paywall
-        if (d.hasActiveSubscription && user?._id) {
-          localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
-          setPlanChosen(true);
-        }
-      })
-      .catch(() => setPlanData(null));
-  }, [isReady, user]);
 
   // Sync plan after returning from Polar checkout
   useEffect(() => {
@@ -250,38 +231,17 @@ export default function DashboardPage() {
         if (cancelled) return;
 
         if (sync.synced) {
-          const d = await api.getUserPlan();
+          const d = await refreshAccessStatus();
           if (cancelled) return;
-          setPlanData({
-            plan: d.plan,
-            postsPerDay: d.postsPerDay,
-            scheduleDaysAhead: d.scheduleDaysAhead,
-            usedToday: d.usedToday,
-            hasActiveSubscription: d.hasActiveSubscription ?? false,
-          });
-          if (user?._id) {
-            localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
-            setPlanChosen(true);
-          }
+          if (!d) return;
           toast.success("Plan upgraded! Your new limits are active.");
         } else {
           // Webhook hasn't arrived yet — wait 3s then refetch
           await new Promise((r) => setTimeout(r, 3000));
           if (cancelled) return;
-          const d = await api.getUserPlan();
+          const d = await refreshAccessStatus();
           if (cancelled) return;
-          setPlanData({
-            plan: d.plan,
-            postsPerDay: d.postsPerDay,
-            scheduleDaysAhead: d.scheduleDaysAhead,
-            usedToday: d.usedToday,
-            hasActiveSubscription: d.hasActiveSubscription ?? false,
-          });
-          if (d.hasActiveSubscription) {
-            if (user?._id) {
-              localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
-              setPlanChosen(true);
-            }
+          if (d?.hasActiveSubscription) {
             toast.success("Plan upgraded! Your new limits are active.");
           } else {
             toast.info("Your payment was received. Plan activation may take a moment — refresh the page shortly.");
@@ -296,7 +256,7 @@ export default function DashboardPage() {
     })();
 
     return () => { cancelled = true; };
-  }, [isReady, user]);
+  }, [isReady, refreshAccessStatus]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -304,14 +264,6 @@ export default function DashboardPage() {
       .then(({ connected }) => setXConnected(connected))
       .catch(() => setXConnected(false));
   }, [isReady]);
-
-  // Persist plan-chosen flag per user so the paywall only shows until
-  // the user has explicitly selected a plan (even the free Creator plan).
-  useEffect(() => {
-    if (user?._id) {
-      setPlanChosen(!!localStorage.getItem(`blogO_plan_chosen_${user._id}`));
-    }
-  }, [user]);
 
   // postsByDay is still needed to compute selectedDayPosts for EditScheduleModal
   const postsByDay = useMemo(() => {
@@ -326,7 +278,7 @@ export default function DashboardPage() {
   }, [posts]);
 
   // Early return after all hooks
-  if (!isReady || postsLoading || !profileLoaded) return <LoadingSpinner />;
+  if (!isReady || postsLoading || !profileLoaded || accessLoading) return <LoadingSpinner />;
 
   const totalPosts = posts.length;
   const postedThisWeek = posts.filter((p) => {
@@ -425,9 +377,7 @@ export default function DashboardPage() {
     const post = posts.find((p) => p.id === id);
     if (!post) return;
 
-    // Paywall: require plan selection before posting to X
-    if (!planChosen && !planData?.hasActiveSubscription) {
-      setShowPlanModal(true);
+    if (!(await ensureAccess())) {
       return;
     }
 
@@ -458,6 +408,12 @@ export default function DashboardPage() {
       await api.postTweet(post.content);
       toast.success("Post published to X successfully!");
     } catch (err) {
+      if (handleAccessError(err)) {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === id ? { ...p, status: "scheduled" } : p))
+        );
+        return;
+      }
       console.error("[Dashboard] POST /x/tweet failed:", err);
       // Revert status on failure
       setPosts((prev) =>
@@ -469,6 +425,12 @@ export default function DashboardPage() {
 
   const handleContentSave = async (id: string, content: string) => {
     const post = posts.find((p) => p.id === id);
+    if (post?.scheduledPostId && !(await ensureAccess())) {
+      return;
+    }
+
+    const previousContent = post?.content;
+
     setPosts((prev) =>
       prev.map((p) => (p.id === id ? { ...p, content } : p))
     );
@@ -484,6 +446,17 @@ export default function DashboardPage() {
         await api.updatePost(id, { finalPost: content });
       }
     } catch (err) {
+      if (handleAccessError(err)) {
+        if (previousContent) {
+          setPosts((prev) =>
+            prev.map((p) => (p.id === id ? { ...p, content: previousContent } : p))
+          );
+          setDetailPost((prev) =>
+            prev?.id === id ? { ...prev, content: previousContent } : prev
+          );
+        }
+        return;
+      }
       console.error("[Dashboard] Content save failed:", err);
     }
   };
@@ -494,6 +467,10 @@ export default function DashboardPage() {
     slideCount: number;
     scheduledFor: Date;
   }) => {
+    if (!(await ensureAccess())) {
+      return;
+    }
+
     setIsGenerating(true);
     const calendarDate = params.scheduledFor;
     const scheduledForKey = dayKey(calendarDate);
@@ -519,10 +496,11 @@ export default function DashboardPage() {
       setShowOnboardingModal(true);
       setShowGeneratePanel(false);
       // Update usage count now that new posts have been generated
-      api.getUserPlan()
-        .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription }))
-        .catch(() => {});
+      refreshAccessStatus().catch(() => {});
     } catch (err) {
+      if (handleAccessError(err)) {
+        return;
+      }
       const status = (err as { status?: number }).status;
       // 403 = expected business-logic rejection (daily limit / window exceeded).
       // Don't console.error — Next.js dev overlay treats console.error(Error) as
@@ -540,9 +518,7 @@ export default function DashboardPage() {
   const handleBulkSchedule = async (scheduledPosts: Post[]) => {
     if (scheduledPosts.length === 0) return;
 
-    // Paywall: require plan selection before scheduling
-    if (!planChosen && !planData?.hasActiveSubscription) {
-      setShowPlanModal(true);
+    if (!(await ensureAccess())) {
       return;
     }
 
@@ -609,6 +585,17 @@ export default function DashboardPage() {
         `${scheduledPosts.length} post${scheduledPosts.length !== 1 ? "s" : ""} scheduled!`
       );
     } catch (err) {
+      if (handleAccessError(err)) {
+        const ids = new Set(scheduledPosts.map((p) => p.id));
+        setPosts((prev) =>
+          prev.map((p) =>
+            ids.has(p.id)
+              ? { ...p, status: "draft" as const, scheduledDate: undefined }
+              : p
+          )
+        );
+        return;
+      }
       console.error("[Dashboard] Bulk schedule failed:", err);
       const ids = new Set(scheduledPosts.map((p) => p.id));
       setPosts((prev) =>
@@ -626,9 +613,7 @@ export default function DashboardPage() {
     const post = posts.find((p) => p.id === id);
     if (!post) return;
 
-    // Paywall: require plan selection before scheduling
-    if (!planChosen && !planData?.hasActiveSubscription) {
-      setShowPlanModal(true);
+    if (!(await ensureAccess())) {
       return;
     }
 
@@ -679,6 +664,16 @@ export default function DashboardPage() {
       }
       toast.success("Post scheduled!");
     } catch (err) {
+      if (handleAccessError(err)) {
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === id
+              ? { ...p, status: post.status, scheduledDate: post.scheduledDate }
+              : p
+          )
+        );
+        return;
+      }
       console.error("[Dashboard] Schedule post failed:", err);
       // Revert optimistic update
       setPosts((prev) =>
@@ -745,28 +740,35 @@ export default function DashboardPage() {
                 ) : planData ? (() => {
                   const PLAN_NAMES: Record<string, string> = { creator: "Creator", builder: "Builder", authority: "Authority" };
                   return (
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: "#d6ccff",
-                          background: "#2d2650",
-                          border: "1px solid #9d8ee8",
-                          borderRadius: 999,
-                          padding: "3px 9px",
-                          whiteSpace: "nowrap",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {PLAN_NAMES[planData.plan] ?? planData.plan}
-                      </span>
-                      <button
-                        onClick={() => setShowPlanModal(true)}
-                        className="text-[11px] font-medium hover:opacity-80 transition-opacity"
-                        style={{ color: "#9d8ee8" }}
-                      >
-                        Change
-                      </button>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "#d6ccff",
+                            background: "#2d2650",
+                            border: "1px solid #9d8ee8",
+                            borderRadius: 999,
+                            padding: "3px 9px",
+                            whiteSpace: "nowrap",
+                            fontWeight: 500,
+                          }}
+                        >
+                          {PLAN_NAMES[planData.plan] ?? planData.plan}
+                        </span>
+                        <button
+                          onClick={() => setShowPlanModal(true)}
+                          className="text-[11px] font-medium hover:opacity-80 transition-opacity"
+                          style={{ color: "#9d8ee8" }}
+                        >
+                          Change
+                        </button>
+                      </div>
+                      {trialCountdownLabel && (
+                        <span className="text-[10px] text-white/45">
+                          {trialCountdownLabel}
+                        </span>
+                      )}
                     </div>
                   );
                 })() : null}
@@ -1089,22 +1091,26 @@ export default function DashboardPage() {
         onClose={() => setShowConnectXModal(false)}
       />
 
-      {showPlanModal && planData && (
+      {(showPlanModal || showPaywall) && (
         <PlanSwitcherModal
-          currentPlan={planData.plan}
-          hasActiveSubscription={planData.hasActiveSubscription}
-          onClose={() => setShowPlanModal(false)}
-          title={!planChosen && !planData.hasActiveSubscription ? "Choose your plan" : "Change plan"}
-          subtitle={!planChosen && !planData.hasActiveSubscription ? "Pick a plan to unlock scheduling and posting to X" : "Select a plan to switch to"}
+          currentPlan={(planData?.plan ?? "creator") as PlanKey}
+          hasActiveSubscription={planData?.hasActiveSubscription ?? false}
+          mode={showPaywall ? "trial_expired" : "manage_plan"}
+          paywall={paywall}
+          onClose={() => {
+            setShowPlanModal(false);
+            closePaywall();
+          }}
+          title={showPaywall ? "Your trial has ended" : "Change plan"}
+          subtitle={
+            showPaywall
+              ? "Choose a plan to keep generating posts and continue posting or scheduling."
+              : "Select a plan to switch to"
+          }
           onPlanChange={() => {
-            // Mark that the user has explicitly selected a plan
-            if (user?._id) {
-              localStorage.setItem(`blogO_plan_chosen_${user._id}`, "true");
-              setPlanChosen(true);
-            }
-            api.getUserPlan()
-              .then((d) => setPlanData({ plan: d.plan, postsPerDay: d.postsPerDay, scheduleDaysAhead: d.scheduleDaysAhead, usedToday: d.usedToday, hasActiveSubscription: d.hasActiveSubscription ?? false }))
-              .catch(() => {});
+            refreshAccessStatus().catch(() => {});
+            closePaywall();
+            setShowPlanModal(false);
           }}
         />
       )}

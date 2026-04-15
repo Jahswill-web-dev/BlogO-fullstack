@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/lib/api";
+import { api, PlanKey, TrialPaywallPayload } from "@/lib/api";
 import { cn } from "@/lib/utils";
-
-type PlanKey = "creator" | "builder" | "authority";
 
 interface PlanSwitcherModalProps {
   currentPlan: PlanKey;
@@ -16,6 +14,8 @@ interface PlanSwitcherModalProps {
   onPlanChange: () => void;
   title?: string;
   subtitle?: string;
+  mode?: "manage_plan" | "trial_expired";
+  paywall?: TrialPaywallPayload | null;
 }
 
 const PLANS: {
@@ -59,9 +59,16 @@ export function PlanSwitcherModal({
   onPlanChange,
   title = "Change plan",
   subtitle = "Select a plan to switch to",
+  mode = "manage_plan",
+  paywall = null,
 }: PlanSwitcherModalProps) {
   const [switching, setSwitching] = useState<PlanKey | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
+  const isTrialExpiredMode = mode === "trial_expired";
+  const availablePlans =
+    paywall?.availablePlanIds?.length
+      ? paywall.availablePlanIds
+      : PLANS.map((plan) => plan.key);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -72,20 +79,20 @@ export function PlanSwitcherModal({
   }, [onClose]);
 
   const handleSelect = async (plan: PlanKey) => {
-    if (plan === currentPlan || switching) return;
+    if ((!isTrialExpiredMode && plan === currentPlan) || switching) return;
+
     setSwitching(plan);
     try {
-      if (plan === "creator") {
-        // Downgrade to free — direct update
+      if (!isTrialExpiredMode && plan === "creator") {
         await api.updateUserPlan("creator");
         toast.success("Switched to Creator plan");
         onPlanChange();
         onClose();
-      } else {
-        // Paid plan — redirect to Polar checkout
-        const { checkoutUrl } = await api.checkout(plan);
-        window.location.href = checkoutUrl;
+        return;
       }
+
+      const { checkoutUrl } = await api.checkout(plan);
+      window.location.href = checkoutUrl;
     } catch (err) {
       toast.error((err as Error).message || "Something went wrong. Try again.");
       setSwitching(null);
@@ -125,13 +132,15 @@ export function PlanSwitcherModal({
           className="w-full max-w-2xl rounded-2xl border p-6"
           style={{ background: "#0B0F19", borderColor: "#1F2933" }}
         >
-          {/* Header */}
           <div className="flex items-start justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold text-white">{title}</h2>
-              <p className="text-sm text-white/40 mt-0.5">
-                {subtitle}
-              </p>
+              <p className="text-sm text-white/40 mt-0.5">{subtitle}</p>
+              {isTrialExpiredMode && (
+                <p className="text-xs text-white/50 mt-2 max-w-xl">
+                  Your 3-day free trial has ended. Pick a plan to keep generating posts and continue posting or scheduling to X.
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -141,10 +150,9 @@ export function PlanSwitcherModal({
             </button>
           </div>
 
-          {/* Plan cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {PLANS.map((plan) => {
-              const isCurrent = plan.key === currentPlan;
+            {PLANS.filter((plan) => availablePlans.includes(plan.key)).map((plan) => {
+              const isCurrent = !isTrialExpiredMode && plan.key === currentPlan;
               const isLoading = switching === plan.key;
 
               return (
@@ -165,7 +173,6 @@ export function PlanSwitcherModal({
                     background: isCurrent ? "rgba(92,63,237,0.08)" : "#0F1419",
                   }}
                 >
-                  {/* Current badge */}
                   {isCurrent && (
                     <span
                       className="absolute top-3 right-3 text-[10px] font-medium px-2 py-0.5 rounded-full"
@@ -179,30 +186,26 @@ export function PlanSwitcherModal({
                     </span>
                   )}
 
-                  {/* Plan name */}
                   <span className="text-base font-semibold text-white mb-1">
                     {plan.name}
                   </span>
 
-                  {/* Stats */}
                   <span className="text-xs text-white/40 mb-4">
                     {plan.postsPerDay} posts/day &middot; {plan.scheduleDays}-day window
                   </span>
 
-                  {/* Features */}
                   <ul className="space-y-1.5 w-full">
-                    {plan.features.map((f) => (
+                    {plan.features.map((feature) => (
                       <li
-                        key={f}
+                        key={feature}
                         className="flex items-center gap-2 text-xs text-white/60"
                       >
                         <Check className="w-3 h-3 text-green-400 flex-shrink-0" />
-                        {f}
+                        {feature}
                       </li>
                     ))}
                   </ul>
 
-                  {/* Select / loading indicator */}
                   {!isCurrent && (
                     <div className="mt-4 w-full">
                       {isLoading ? (
@@ -214,7 +217,9 @@ export function PlanSwitcherModal({
                               borderTopColor: "transparent",
                             }}
                           />
-                          {plan.key === "creator" ? "Switching…" : "Redirecting…"}
+                          {!isTrialExpiredMode && plan.key === "creator"
+                            ? "Switching..."
+                            : "Redirecting..."}
                         </div>
                       ) : (
                         <span
@@ -224,7 +229,11 @@ export function PlanSwitcherModal({
                             color: "#9d8ee8",
                           }}
                         >
-                          {plan.key === "creator" ? `Select ${plan.name}` : `Upgrade to ${plan.name}`}
+                          {isTrialExpiredMode
+                            ? `Choose ${plan.name}`
+                            : plan.key === "creator"
+                            ? `Select ${plan.name}`
+                            : `Upgrade to ${plan.name}`}
                         </span>
                       )}
                     </div>
@@ -234,8 +243,7 @@ export function PlanSwitcherModal({
             })}
           </div>
 
-          {/* Manage Billing — only for active subscribers */}
-          {hasActiveSubscription && (
+          {!isTrialExpiredMode && hasActiveSubscription && (
             <div className="mt-5 pt-4 border-t" style={{ borderColor: "#1F2933" }}>
               <button
                 onClick={handleManageBilling}

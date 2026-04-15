@@ -2,6 +2,49 @@ export const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const AUTH_TOKEN_KEY = "auth_token";
 
+export type PlanKey = "creator" | "builder" | "authority";
+
+export type TrialAccessState = "active_trial" | "paid" | "trial_expired";
+
+export type TrialPaywallPayload = {
+  reason?: "plan_selection_required" | "trial_expired";
+  requiresPayment?: boolean;
+  requiresPlanSelection?: boolean;
+  availablePlanIds?: PlanKey[];
+  selectedPlanId?: PlanKey;
+  checkoutUrl?: string;
+  trialExpiresAt?: string | null;
+};
+
+export class ApiError extends Error {
+  status?: number;
+  code?: string;
+  paywall?: TrialPaywallPayload;
+
+  constructor(
+    message: string,
+    options: { status?: number; code?: string; paywall?: TrialPaywallPayload } = {}
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = options.status;
+    this.code = options.code;
+    this.paywall = options.paywall;
+  }
+}
+
+export function isApiError(error: unknown): error is ApiError {
+  return error instanceof ApiError;
+}
+
+export function isTrialExpiredError(error: unknown): error is ApiError {
+  return (
+    isApiError(error) &&
+    error.status === 402 &&
+    error.code === "TRIAL_EXPIRED"
+  );
+}
+
 export function setAuthToken(token: string): void {
   if (typeof window !== "undefined") {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
@@ -38,16 +81,29 @@ export async function apiFetch<T>(
     ...init,
     headers: { ...BASE_OPTS.headers, ...authHeader, ...(init.headers ?? {}) },
   });
+
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     let message = res.statusText;
+    let code: string | undefined;
+    let paywall: TrialPaywallPayload | undefined;
+
     try {
-      const parsed = JSON.parse(body);
-      message = parsed.error ?? parsed.message ?? res.statusText;
-    } catch { /* ignore parse errors */ }
-    const err = Object.assign(new Error(message), { status: res.status });
-    throw err;
+      const parsed = JSON.parse(body) as {
+        error?: string;
+        message?: string;
+        paywall?: TrialPaywallPayload;
+      };
+      message = parsed.message ?? parsed.error ?? res.statusText;
+      code = parsed.error;
+      paywall = parsed.paywall;
+    } catch {
+      // Ignore parse errors and fall back to status text.
+    }
+
+    throw new ApiError(message, { status: res.status, code, paywall });
   }
+
   const text = await res.text();
   return (text ? JSON.parse(text) : undefined) as T;
 }
@@ -60,8 +116,14 @@ export async function apiFetch<T>(
 export type AuthUser = {
   _id: string;
   name: string;
+  displayName?: string;
   email: string;
   avatar?: string;
+  photo?: string;
+  trial_expires_at?: string | null;
+  is_paid?: boolean;
+  plan?: PlanKey;
+  polarCustomerId?: string | null;
 };
 
 /** Fields for POST /profile */
@@ -112,12 +174,60 @@ export type ScheduledApiPost = {
   platform: string;
 };
 
+export type UserPlan = {
+  plan: PlanKey;
+  postsPerDay: number;
+  scheduleDaysAhead: number;
+  usedToday: number;
+  remainingToday: number;
+  hasActiveSubscription: boolean;
+  planExpiresAt: string | null;
+  isPaid: boolean;
+  trialExpiresAt: string | null;
+};
+
+export type TrialAccessStatus = UserPlan & {
+  accessState: TrialAccessState;
+  hasAccess: boolean;
+};
+
+export function normalizeAuthUser(user: AuthUser): AuthUser {
+  return {
+    ...user,
+    name: user.name ?? user.displayName ?? "",
+    avatar: user.avatar ?? user.photo,
+  };
+}
+
+export function deriveTrialAccessStatus(plan: UserPlan): TrialAccessStatus {
+  const trialExpiresAtMs = plan.trialExpiresAt
+    ? new Date(plan.trialExpiresAt).getTime()
+    : null;
+  const isTrialActive =
+    !plan.isPaid &&
+    trialExpiresAtMs !== null &&
+    Number.isFinite(trialExpiresAtMs) &&
+    trialExpiresAtMs > Date.now();
+
+  const accessState: TrialAccessState = plan.isPaid
+    ? "paid"
+    : isTrialActive
+    ? "active_trial"
+    : "trial_expired";
+
+  return {
+    ...plan,
+    accessState,
+    hasAccess: accessState !== "trial_expired",
+  };
+}
+
 // ------------------------------------------------------------------ //
 //  Named API helpers                                                   //
 // ------------------------------------------------------------------ //
 export const api = {
   /** Check auth — 401 means not logged in. Returns User document. */
-  getMe: () => apiFetch<AuthUser>("/auth/me"),
+  getMe: async () => normalizeAuthUser(await apiFetch<AuthUser>("/auth/me")),
 
   /** Retrieve current user's niche/audience profile */
   getProfile: async () => {
@@ -223,7 +333,7 @@ export const api = {
   logout: () => apiFetch<void>("/auth/logout").finally(clearAuthToken),
 
   /** Initiate Polar checkout — returns a redirect URL to Polar's payment page */
-  checkout: (planId: "creator" | "builder" | "authority") =>
+  checkout: (planId: PlanKey) =>
     apiFetch<{ checkoutUrl: string }>("/api/checkout", {
       method: "POST",
       body: JSON.stringify({ planId }),
@@ -241,19 +351,14 @@ export const api = {
     ),
 
   /** Get the user's current plan, limits, and today's usage */
-  getUserPlan: () =>
-    apiFetch<{
-      plan: "creator" | "builder" | "authority";
-      postsPerDay: number;
-      scheduleDaysAhead: number;
-      usedToday: number;
-      remainingToday: number;
-      hasActiveSubscription: boolean;
-      planExpiresAt: string | null;
-    }>("/api/user/plan"),
+  getUserPlan: () => apiFetch<UserPlan>("/api/user/plan"),
+
+  /** Get current access state derived from the user's plan + trial fields */
+  getTrialAccessStatus: async () =>
+    deriveTrialAccessStatus(await api.getUserPlan()),
 
   /** Update the authenticated user's subscription plan */
-  updateUserPlan: (plan: "creator" | "builder" | "authority") =>
+  updateUserPlan: (plan: PlanKey) =>
     apiFetch<{ success: boolean; plan: string }>("/api/user/plan", {
       method: "PATCH",
       body: JSON.stringify({ plan }),

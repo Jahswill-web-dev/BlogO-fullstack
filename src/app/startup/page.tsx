@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { GradientButton } from "@/components/ui/buttons/gradientButton";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
-import { api } from "@/lib/api";
+import { PlanSwitcherModal } from "@/components/modules/PlanSwitcherModal";
+import { useTrialAccess } from "@/hooks/useTrialAccess";
+import { api, PlanKey } from "@/lib/api";
 import { FIXED_NICHES } from "@/lib/niches";
 import { cn } from "@/lib/utils";
 
@@ -57,8 +59,18 @@ export default function StartupOnboarding() {
   });
   // "Other" free-text for audience
   const [audienceOther, setAudienceOther] = useState("");
+  const {
+    accessStatus,
+    loading: accessLoading,
+    paywall,
+    showPaywall,
+    ensureAccess,
+    handleAccessError,
+    closePaywall,
+    refreshAccessStatus,
+  } = useTrialAccess(isReady);
 
-  if (!isReady) return <LoadingSpinner />;
+  if (!isReady || accessLoading) return <LoadingSpinner />;
 
   const skipToPreview = () => {
     // Set default audience if user skips Step 1
@@ -94,6 +106,10 @@ export default function StartupOnboarding() {
       return;
     }
 
+    if (!(await ensureAccess())) {
+      return;
+    }
+
     setGenerating(true);
     setGenError(null);
     try {
@@ -107,8 +123,13 @@ export default function StartupOnboarding() {
       });
       await api.generateContentStrategy();
       await api.generatePosts({ count: 4 });
+      refreshAccessStatus().catch(() => {});
       router.push("/dashboard?schedule=true");
     } catch (err) {
+      if (handleAccessError(err)) {
+        setGenerating(false);
+        return;
+      }
       // Distinguish between validation errors and generation errors
       if (err && typeof err === "object") {
         const status = (err as { status?: number }).status;
@@ -129,10 +150,11 @@ export default function StartupOnboarding() {
   const selectedNiche = FIXED_NICHES.find((n) => n.name === formData.problem);
 
   return (
-    <div
-      suppressHydrationWarning
-      className="min-h-screen bg-gradient-to-b from-[#10060A] via-[#10060A] to-[#5C3FED] flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-16 relative"
-    >
+    <>
+      <div
+        suppressHydrationWarning
+        className="min-h-screen bg-gradient-to-b from-[#10060A] via-[#10060A] to-[#5C3FED] flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-16 relative"
+      >
       {/* Skip button — only on optional steps (1: audience, 2: product) */}
       {step > 0 && step < 3 && (
         <button
@@ -497,7 +519,24 @@ export default function StartupOnboarding() {
         </div>
       )}
 
-    </div>
+      </div>
+
+      {showPaywall && (
+        <PlanSwitcherModal
+          currentPlan={(accessStatus?.plan ?? "creator") as PlanKey}
+          hasActiveSubscription={accessStatus?.hasActiveSubscription ?? false}
+          mode="trial_expired"
+          paywall={paywall}
+          onClose={closePaywall}
+          title="Your trial has ended"
+          subtitle="Choose a plan to keep generating posts and continue posting or scheduling."
+          onPlanChange={() => {
+            refreshAccessStatus().catch(() => {});
+            closePaywall();
+          }}
+        />
+      )}
+    </>
   );
 }
 
