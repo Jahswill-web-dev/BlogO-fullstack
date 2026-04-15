@@ -29,13 +29,8 @@ function getTrialCountdownLabel(expiresAt: string | null): string | null {
   const msLeft = new Date(expiresAt).getTime() - Date.now();
   if (!Number.isFinite(msLeft) || msLeft <= 0) return null;
 
-  const hoursLeft = Math.ceil(msLeft / (1000 * 60 * 60));
-  if (hoursLeft <= 24) {
-    return `${hoursLeft} hour${hoursLeft === 1 ? "" : "s"} left in your trial`;
-  }
-
-  const daysLeft = Math.ceil(hoursLeft / 24);
-  return `${daysLeft} day${daysLeft === 1 ? "" : "s"} left in your trial`;
+  const daysLeft = Math.max(1, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
+  return `${daysLeft} day${daysLeft === 1 ? "" : "s"} left in free trial`;
 }
 
 export function useTrialAccess(enabled = true) {
