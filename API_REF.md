@@ -181,7 +181,9 @@ Use frontend state only for plan selection before checkout. Treat webhook-confir
 |--------|----------|------|-------------|
 | GET | `/auth/x/status` | JWT | Check whether the user has connected X |
 | GET | `/auth/x` | JWT | Start X OAuth flow |
+| GET | `/auth/x/reconnect` | JWT | Reconnect an existing X account by restarting OAuth |
 | GET | `/auth/x/callback` | JWT | X OAuth callback |
+| DELETE | `/auth/x` | JWT | Disconnect X by clearing stored credentials |
 | POST | `/x/tweet` | JWT | Post a tweet immediately |
 
 ### `GET /auth/x/status`
@@ -196,6 +198,38 @@ or
 ```json
 { "connected": false }
 ```
+
+### `GET /auth/x/reconnect`
+
+Starts the X OAuth flow again for a user who needs fresh tokens.
+
+Frontend note:
+- navigate the browser to this endpoint
+- do not call it via background fetch/XHR
+
+Behavior:
+- redirects to X OAuth consent/authorization
+- on success, `/auth/x/callback` stores fresh X tokens for the user
+
+### `DELETE /auth/x`
+
+Clear the authenticated user's stored X credentials locally.
+
+This endpoint does not call X's revoke API. It only removes the saved connection from this backend.
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "connected": false,
+  "message": "X account disconnected"
+}
+```
+
+**Errors:**
+- `401` - unauthenticated
+- `404` - user not found
+- `500` - failed to disconnect X account
 
 ---
 

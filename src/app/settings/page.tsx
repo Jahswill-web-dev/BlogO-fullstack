@@ -1,274 +1,130 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { GradientButton } from "@/components/ui/buttons/gradientButton";
+import Link from "next/link";
+import { Menu, RefreshCw, Settings2 } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { DashboardSidebar } from "@/components/modules/DashboardSidebar";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
-import { api } from "@/lib/api";
-import { FIXED_NICHES } from "@/lib/niches";
-import { cn } from "@/lib/utils";
+import { BASE, api } from "@/lib/api";
 
 export default function SettingsPage() {
-  const router = useRouter();
-  const { isReady } = useProtectedRoute();
-
-  const [profileLoading, setProfileLoading] = useState(true);
+  const { user, isReady } = useProtectedRoute();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [xStatusLoading, setXStatusLoading] = useState(true);
+  const [xConnected, setXConnected] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  const [selectedNiche, setSelectedNiche] = useState("");
-  const [selectedFocusAreas, setSelectedFocusAreas] = useState<string[]>([]);
-
-  const [subStep, setSubStep] = useState<0 | 1>(0);
-
-  const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
     if (!isReady) return;
+
     api
-      .getProfile()
-      .then((profile) => {
-        const parsed = profile.focusArea
-          ? profile.focusArea
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [];
-        setSelectedNiche(profile.userNiche ?? "");
-        setSelectedFocusAreas(parsed);
+      .checkXStatus()
+      .then(({ connected }) => {
+        setXConnected(connected);
       })
       .catch(() => {
-        setLoadError("Could not load your profile. Please try again.");
+        setLoadError("Could not load your settings. Please try again.");
       })
-      .finally(() => setProfileLoading(false));
+      .finally(() => setXStatusLoading(false));
   }, [isReady]);
 
-  const handleSave = async () => {
-    if (!selectedNiche.trim()) {
-      setSaveError("Please select a niche.");
-      return;
-    }
-    if (selectedFocusAreas.length === 0) {
-      setSaveError("Please select at least one focus area.");
-      return;
-    }
-    setSaving(true);
-    setSaveError(null);
-    setSaveSuccess(false);
-    try {
-      await api.saveProfile({
-        userNiche: selectedNiche,
-        focusArea: selectedFocusAreas.join(","),
-      });
-      setSaveSuccess(true);
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : "Failed to save changes. Please try again.";
-      setSaveError(message);
-    } finally {
-      setSaving(false);
-    }
+  const handleReconnectX = () => {
+    window.location.href = `${BASE}/auth/x/reconnect`;
   };
 
-  const handleGoToDashboard = () => {
-    router.push("/dashboard");
-  };
-
-  if (!isReady || profileLoading) return <LoadingSpinner />;
+  if (!isReady || xStatusLoading) return <LoadingSpinner />;
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-[#10060A] flex items-center justify-center">
+      <div className="min-h-screen bg-[#10060A] flex items-center justify-center px-4">
         <p className="text-red-400 text-sm">{loadError}</p>
       </div>
     );
   }
 
-  const currentNicheData = FIXED_NICHES.find((n) => n.name === selectedNiche);
-
   return (
-    <div
-      suppressHydrationWarning
-      className="min-h-screen bg-gradient-to-b from-[#10060A] via-[#10060A] to-[#5C3FED] flex flex-col items-center justify-center px-4 sm:px-6 py-12 sm:py-16 relative"
-    >
-      <div className="mb-6 sm:mb-8 text-center">
-        <h1 className="text-white text-2xl sm:text-3xl font-semibold mb-2">
-          Settings
-        </h1>
-        <p className="text-gray-400 text-xs sm:text-sm">
-          Update your niche and focus areas
-        </p>
-      </div>
+    <div className="min-h-screen bg-[#10060A] text-white">
+      <DashboardSidebar
+        mobileOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        user={user}
+      />
 
-      {/* ── Sub-step 0 — Niche picker ── */}
-      {subStep === 0 && (
-        <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
-          <h2 className="text-white font-bold text-lg sm:text-xl mb-2">
-            Your Niche
-          </h2>
-          <p className="text-gray-400 text-xs sm:text-sm mb-5">
-            Change the niche you create content for.
-          </p>
-
-          <div className="flex flex-wrap gap-2 mb-6">
-            {FIXED_NICHES.map((niche) => (
-              <button
-                key={niche.name}
-                type="button"
-                onClick={() => {
-                  setSelectedNiche(niche.name);
-                  setSelectedFocusAreas([]);
-                  setSaveSuccess(false);
-                }}
-                className={cn(
-                  "text-sm rounded-full px-4 py-2 cursor-pointer transition border",
-                  selectedNiche === niche.name
-                    ? "bg-[#5C3FED]/20 border-[#5C3FED] text-white"
-                    : "bg-[#1F2933] border-transparent text-white hover:bg-[#263241]"
-                )}
-              >
-                {niche.name}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex justify-between items-center">
+      <main className="flex-1 lg:ml-60 min-h-screen overflow-y-auto">
+        <div className="p-4 sm:p-6">
+          <div className="mb-6 flex items-center gap-3">
             <button
-              onClick={() => router.back()}
-              className="text-white/60 hover:text-white text-sm transition"
+              className="lg:hidden text-white/60 hover:text-white flex-shrink-0"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open navigation"
             >
-              Back
+              <Menu className="w-5 h-5" />
             </button>
-            <GradientButton
-              buttonLabel="Next: Focus Areas"
-              className="px-5 sm:px-6 py-2 text-sm"
-              onClick={() => setSubStep(1)}
-              disabled={!selectedNiche}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ── Sub-step 1 — Focus area picker ── */}
-      {subStep === 1 && (
-        <div className="bg-[#0F1419] border border-[#1F2933] rounded-2xl p-5 sm:p-8 w-full max-w-2xl">
-          {/* Selected niche badge */}
-          <div className="mb-4">
-            <span className="inline-flex items-center gap-1.5 bg-[#5C3FED]/20 border border-[#5C3FED]/40 text-[#a090ff] text-xs px-3 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#5C3FED]" />
-              {selectedNiche}
-            </span>
-          </div>
-
-          <h2 className="text-white font-bold text-lg sm:text-xl mb-1">
-            Your Focus Areas
-          </h2>
-          <p className="text-gray-400 text-xs sm:text-sm mb-4">
-            Select up to 3 areas you want to create content about.
-          </p>
-
-          {/* Scrollable focus area list */}
-          <div className="max-h-72 overflow-y-auto pr-1 mb-5 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-[#1F2933] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[#5C3FED]/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:hover:bg-[#5C3FED]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1">
-              {currentNicheData?.focusAreas.map((area) => {
-                const isChecked = selectedFocusAreas.includes(area);
-                return (
-                  <button
-                    key={area}
-                    type="button"
-                    onClick={() =>
-                      setSelectedFocusAreas((prev) =>
-                        isChecked
-                          ? prev.filter((a) => a !== area)
-                          : prev.length < 3
-                          ? [...prev, area]
-                          : prev
-                      )
-                    }
-                    disabled={!isChecked && selectedFocusAreas.length >= 3}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition border",
-                      isChecked
-                        ? "bg-[#5C3FED]/10 border-[#5C3FED]/40 text-white cursor-pointer"
-                        : selectedFocusAreas.length >= 3
-                        ? "bg-transparent border-transparent text-gray-600 cursor-not-allowed"
-                        : "bg-transparent border-transparent text-gray-300 hover:bg-[#1F2933] hover:text-white cursor-pointer"
-                    )}
-                  >
-                    {/* Checkbox */}
-                    <span
-                      className={cn(
-                        "w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center transition",
-                        isChecked
-                          ? "border-[#5C3FED] bg-[#5C3FED]/20"
-                          : "border-white/20"
-                      )}
-                    >
-                      {isChecked && (
-                        <span className="w-2 h-2 rounded-sm bg-[#5C3FED]" />
-                      )}
-                    </span>
-                    <span className="text-xs sm:text-sm leading-snug">
-                      {area}
-                    </span>
-                  </button>
-                );
-              })}
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-semibold">Settings</h1>
+              <p className="text-white/45 text-sm mt-1">
+                Manage your profile setup and X account connection.
+              </p>
             </div>
           </div>
 
-          {saveError && (
-            <p className="text-red-400 text-sm mb-3">{saveError}</p>
-          )}
-          {saveSuccess && (
-            <div className="mb-4 rounded-xl border border-[#5C3FED]/40 bg-[#5C3FED]/10 p-4">
-              <p className="text-white text-sm font-medium">
-                Changes saved successfully.
-              </p>
-              <p className="mt-1 text-gray-300 text-xs sm:text-sm">
-                Your niche and focus areas are updated. Go to your dashboard and start generating posts.
-              </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <GradientButton
-                  buttonLabel="Go to Dashboard"
-                  className="px-5 py-2 text-sm"
-                  onClick={handleGoToDashboard}
-                />
+          <div className="grid gap-4 max-w-4xl">
+            <section className="rounded-2xl border border-[#1F2933] bg-[#0F1419] p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl border border-[#5C3FED]/30 bg-[#5C3FED]/15">
+                    <Settings2 className="w-5 h-5 text-[#d6ccff]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold">Niche and Focus Areas</h2>
+                    <p className="mt-1 max-w-xl text-sm text-white/50">
+                      Update the niche and focus areas HackrPost uses to generate
+                      content for your account.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href="/settings/profile"
+                  className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  style={{ background: "#5C3FED" }}
+                >
+                  Edit Profile Settings
+                </Link>
+              </div>
+            </section>
+
+            <section className="rounded-2xl border border-[#1F2933] bg-[#0F1419] p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-xl border border-[#1F2933] bg-[#08060A]">
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" aria-hidden="true">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold">X Account</h2>
+                    <p className="mt-1 max-w-xl text-sm text-white/50">
+                      {xConnected
+                        ? "Your X account is currently connected. Reconnect if you need to refresh access."
+                        : "Your X account appears disconnected. Reconnect to restore posting and scheduling."}
+                    </p>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setSaveSuccess(false)}
-                  className="rounded-[4px] border border-[#1F2933] px-4 py-2 text-sm text-gray-300 transition hover:bg-[#1F2933] hover:text-white"
+                  onClick={handleReconnectX}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  style={{ background: "#5C3FED" }}
                 >
-                  Stay here
+                  <RefreshCw className="w-4 h-4" />
+                  Reconnect X account
                 </button>
               </div>
-            </div>
-          )}
-
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => {
-                setSubStep(0);
-                setSaveError(null);
-                setSaveSuccess(false);
-              }}
-              className="text-white/60 hover:text-white text-sm transition"
-            >
-              Back
-            </button>
-            <GradientButton
-              buttonLabel={saving ? "Saving..." : "Save Changes"}
-              className="px-5 sm:px-6 py-2 text-sm"
-              onClick={handleSave}
-              disabled={saving || selectedFocusAreas.length === 0}
-            />
+            </section>
           </div>
         </div>
-      )}
+      </main>
     </div>
   );
 }
