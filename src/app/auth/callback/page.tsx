@@ -6,6 +6,7 @@ import { api, clearAuthToken, setAuthToken } from "@/lib/api";
 
 const FALLBACK_AUTH_ERROR_MESSAGE =
   "We couldn't complete your sign-in. Please try again.";
+const ACCESS_REQUEST_URL = "https://x.com/jahswille1";
 
 function AuthCallbackLoadingState() {
   return (
@@ -19,6 +20,8 @@ function AuthCallbackLoadingState() {
 }
 
 function AuthCallbackErrorState({ message }: { message: string }) {
+  const isInviteOnlyError = message.toLowerCase().includes("invite-only");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0B0F19] px-6">
       <div className="w-full max-w-md rounded-[14px] border border-[#1F2933] bg-[#0F1419] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
@@ -33,13 +36,38 @@ function AuthCallbackErrorState({ message }: { message: string }) {
         <p className="mt-3 font-geist text-sm leading-6 text-white/70">
           {message}
         </p>
-        <button
-          type="button"
-          onClick={() => window.location.replace("/signin")}
-          className="mt-6 inline-flex items-center justify-center rounded-[10px] bg-[linear-gradient(109.69deg,#E36A3A_11.2%,#B44BD6_49.66%,#5C3FED_88.12%)] px-4 py-2 text-sm font-medium text-white shadow-[5px_5px_7.4px_0px_#1E103538] transition-shadow hover:shadow-[7px_7px_10px_0px_#1E103560]"
-        >
-          Back to sign in
-        </button>
+        {isInviteOnlyError ? (
+          <>
+            <p className="mt-3 font-geist text-sm leading-6 text-white/70">
+              DM{" "}
+              <a
+                href={ACCESS_REQUEST_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="text-white underline underline-offset-2"
+              >
+                @jahswille1
+              </a>{" "}
+              on X to request access.
+            </p>
+            <a
+              href={ACCESS_REQUEST_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-6 inline-flex items-center justify-center rounded-[10px] bg-[linear-gradient(109.69deg,#E36A3A_11.2%,#B44BD6_49.66%,#5C3FED_88.12%)] px-4 py-2 text-sm font-medium text-white shadow-[5px_5px_7.4px_0px_#1E103538] transition-shadow hover:shadow-[7px_7px_10px_0px_#1E103560]"
+            >
+              Request access on X
+            </a>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => window.location.replace("/signin")}
+            className="mt-6 inline-flex items-center justify-center rounded-[10px] bg-[linear-gradient(109.69deg,#E36A3A_11.2%,#B44BD6_49.66%,#5C3FED_88.12%)] px-4 py-2 text-sm font-medium text-white shadow-[5px_5px_7.4px_0px_#1E103538] transition-shadow hover:shadow-[7px_7px_10px_0px_#1E103560]"
+          >
+            Back to sign in
+          </button>
+        )}
       </div>
     </div>
   );
