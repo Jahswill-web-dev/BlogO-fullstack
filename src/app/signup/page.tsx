@@ -3,7 +3,6 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
-import { FaXTwitter } from "react-icons/fa6";
 import { ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -98,17 +97,6 @@ export default function SignupPage() {
                         <div className="flex items-center justify-center gap-3 bg-[#0F1419] rounded-[2px] px-6 py-3 text-white font-medium hover:bg-[#151B22] hover:cursor-pointer transition">
                             <FcGoogle size={20} />
                             <span>Sign Up With Google</span>
-                        </div>
-                    </button>
-
-                    {/* X Button */}
-                    <button
-                        onClick={() => { window.location.href = `${API}/auth/x`; }}
-                        className="group relative mb-6 rounded-[4px] p-0.5 bg-linear-to-r from-[#E36A3A] via-[#B44BD6] to-[#5C3FED] shadow-[5px_5px_7.4px_0px_#1E103538] cursor-pointer"
-                    >
-                        <div className="flex items-center justify-center gap-3 bg-[#0F1419] rounded-[2px] px-6 py-3 text-white font-medium hover:bg-[#151B22] hover:cursor-pointer transition">
-                            <FaXTwitter size={18} />
-                            <span>Sign Up With X</span>
                         </div>
                     </button>
 
