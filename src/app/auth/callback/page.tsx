@@ -59,6 +59,11 @@ function AuthCallbackContent() {
       return;
     }
 
+    if (!token) {
+      clearAuthToken();
+      return;
+    }
+
     setAuthToken(token);
 
     api
