@@ -21,6 +21,7 @@ import { PostDetailPopup } from "@/components/modules/PostDetailPopup";
 import { ConnectXModal } from "@/components/modules/ConnectXModal";
 import { DayPostsPopup } from "@/components/modules/DayPostsPopup";
 import { AutoSchedulePopover } from "@/components/modules/AutoSchedulePopover";
+import { AutoScheduleSelectionModal } from "@/components/modules/AutoScheduleSelectionModal";
 import { PlanSwitcherModal } from "@/components/modules/PlanSwitcherModal";
 
 /* ------------------------------------------------------------------ */
@@ -47,6 +48,12 @@ export default function DashboardPage() {
   const [detailSourceDay, setDetailSourceDay] = useState<Date | null>(null);
   const [calendarSelectedDay, setCalendarSelectedDay] = useState<Date | null>(null);
   const [showAutoScheduleModal, setShowAutoScheduleModal] = useState(false);
+  const [autoScheduleSelection, setAutoScheduleSelection] = useState<{
+    posts: Post[];
+    initialDate?: Date;
+  } | null>(null);
+  const [autoScheduleDrafts, setAutoScheduleDrafts] = useState<Post[]>([]);
+  const [autoScheduleInitialDate, setAutoScheduleInitialDate] = useState<Date | undefined>();
   const [singlePostMode, setSinglePostMode] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -297,6 +304,16 @@ export default function DashboardPage() {
     setShowOnboardingModal(false);
   };
 
+  const openAutoScheduleSelection = (candidatePosts: Post[], initialDate?: Date) => {
+    setAutoScheduleSelection({ posts: candidatePosts, initialDate });
+  };
+
+  const openAutoScheduleControls = (selectedDrafts: Post[], initialDate?: Date) => {
+    setAutoScheduleDrafts(selectedDrafts);
+    setAutoScheduleInitialDate(initialDate);
+    setShowAutoScheduleModal(true);
+  };
+
   const handleScheduleAll = (postsToSchedule: Post[]) => {
     sessionStorage.setItem("blogO_onboarding_shown", "true");
     setShowOnboardingModal(false);
@@ -307,7 +324,10 @@ export default function DashboardPage() {
         return [...existing, ...postsToSchedule];
       });
       setOnboardingPosts(postsToSchedule);
-      setShowAutoScheduleModal(true);
+      openAutoScheduleControls(
+        postsToSchedule,
+        postsToSchedule[0]?.targetDate ?? postsToSchedule[0]?.scheduledDate
+      );
     }
   };
 
@@ -963,7 +983,7 @@ export default function DashboardPage() {
             <CalendarCard
               posts={posts}
               onPostClick={handlePostClick}
-              onBulkSchedule={handleBulkSchedule}
+              onAutoScheduleClick={openAutoScheduleSelection}
               onGenerateClick={(day) => { setCalendarSelectedDay(day); setShowGeneratePanel(true); }}
               onDayClick={(day) => { setCalendarSelectedDay(day); setDayPopupDate(day); }}
             />
@@ -1028,6 +1048,22 @@ export default function DashboardPage() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {autoScheduleSelection && (
+          <AutoScheduleSelectionModal
+            key="auto-schedule-selection"
+            posts={autoScheduleSelection.posts}
+            isOpen
+            onClose={() => setAutoScheduleSelection(null)}
+            onContinue={(selectedDrafts) => {
+              const initialDate = autoScheduleSelection.initialDate;
+              setAutoScheduleSelection(null);
+              openAutoScheduleControls(selectedDrafts, initialDate);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showAutoScheduleModal && (
           <motion.div
             key="auto-schedule-modal"
@@ -1037,7 +1073,13 @@ export default function DashboardPage() {
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-[70] flex items-center justify-center p-4"
             style={{ background: "rgba(0,0,0,0.65)" }}
-            onClick={(e) => { if (e.target === e.currentTarget) setShowAutoScheduleModal(false); }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setShowAutoScheduleModal(false);
+                setAutoScheduleDrafts([]);
+                setAutoScheduleInitialDate(undefined);
+              }
+            }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -1047,11 +1089,18 @@ export default function DashboardPage() {
               style={{ maxHeight: "90vh", overflowY: "auto" }}
             >
               <AutoSchedulePopover
-                posts={onboardingPosts}
-                onClose={() => setShowAutoScheduleModal(false)}
+                posts={autoScheduleDrafts}
+                initialDate={autoScheduleInitialDate}
+                onClose={() => {
+                  setShowAutoScheduleModal(false);
+                  setAutoScheduleDrafts([]);
+                  setAutoScheduleInitialDate(undefined);
+                }}
                 onConfirm={(scheduledPosts) => {
                   handleBulkSchedule(scheduledPosts);
                   setShowAutoScheduleModal(false);
+                  setAutoScheduleDrafts([]);
+                  setAutoScheduleInitialDate(undefined);
                 }}
               />
             </motion.div>
@@ -1092,7 +1141,7 @@ export default function DashboardPage() {
               setDayPopupDate(null);
               setShowGeneratePanel(true);
             }}
-            onAutoSchedule={handleBulkSchedule}
+            onAutoSchedule={openAutoScheduleSelection}
           />
         )}
       </AnimatePresence>

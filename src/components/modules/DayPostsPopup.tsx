@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, Sparkles } from "lucide-react";
 import { Post } from "@/components/modules/EditScheduleModal";
-import { AutoSchedulePopover } from "@/components/modules/AutoSchedulePopover";
 import { AuthUser } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +62,7 @@ interface DayPostsPopupProps {
   onClose: () => void;
   onPostClick: (post: Post) => void;
   onGenerateClick: () => void;
-  onAutoSchedule: (scheduledPosts: Post[]) => void;
+  onAutoSchedule: (posts: Post[], initialDate?: Date) => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -77,7 +76,6 @@ function DayPostsContent({
   onGenerateClick,
   onAutoSchedule,
 }: DayPostsPopupProps) {
-  const [autoScheduleOpen, setAutoScheduleOpen] = useState(false);
   const eligiblePosts = useMemo(
     () => posts.filter((post) => post.status === "draft" && !post.scheduledPostId),
     [posts]
@@ -103,7 +101,10 @@ function DayPostsContent({
         <div className="flex items-center gap-2 flex-shrink-0 ml-3">
           {eligiblePosts.length > 0 && (
             <button
-              onClick={() => setAutoScheduleOpen((open) => !open)}
+              onClick={() => {
+                onAutoSchedule(eligiblePosts, day);
+                onClose();
+              }}
               className="flex items-center gap-1.5 text-white text-[12px] font-medium px-2.5 py-1.5 rounded-lg transition-opacity hover:opacity-90"
               style={{ background: "#1D9BF0" }}
             >
@@ -130,25 +131,6 @@ function DayPostsContent({
       </div>
 
       {/* ── Post list ── */}
-      {autoScheduleOpen && (
-        <div
-          className="border-b border-[#1F2933] p-3"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <AutoSchedulePopover
-            posts={posts}
-            onClose={() => setAutoScheduleOpen(false)}
-            onConfirm={(scheduledPosts) => {
-              onAutoSchedule(scheduledPosts);
-              setAutoScheduleOpen(false);
-              onClose();
-            }}
-            isMobileSheet
-            initialDate={day}
-          />
-        </div>
-      )}
-
       <div className="overflow-y-auto scrollbar-popup flex-1 p-3 space-y-2">
         {posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-3">

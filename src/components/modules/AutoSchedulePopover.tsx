@@ -1,25 +1,19 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Info } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { Post } from "@/components/modules/EditScheduleModal";
 import { cn } from "@/lib/utils";
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                             */
-/* ------------------------------------------------------------------ */
 const CAL_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-/** All day cells (including overflow from adjacent months) for a full-month grid */
 function getMonthCells(month: Date): Date[] {
   const year = month.getFullYear();
   const m = month.getMonth();
   const firstDay = new Date(year, m, 1);
   const lastDay = new Date(year, m + 1, 0);
-  // pad start to Sunday
   const start = new Date(firstDay);
   start.setDate(firstDay.getDate() - firstDay.getDay());
-  // pad end to Saturday
   const end = new Date(lastDay);
   end.setDate(lastDay.getDate() + (6 - lastDay.getDay()));
 
@@ -48,44 +42,13 @@ function formatPreviewTime(date: Date): string {
     minute: "2-digit",
     hour12: true,
   });
-  return `${month} ${day} · ${time}`;
+  return `${month} ${day} - ${time}`;
 }
 
 function formatEndDate(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function getPostDate(post: Post): Date {
-  return post.targetDate ?? post.scheduledDate ?? new Date(0);
-}
-
-function dateGroupKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
-function formatGeneratedDate(date: Date): string {
-  return date.getTime() === 0
-    ? "Unassigned date"
-    : date.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-}
-
-function getEligiblePosts(posts: Post[]) {
-  return posts
-    .filter((p) => p.status === "draft" && !p.scheduledPostId)
-    .sort((a, b) => {
-      const byDate = getPostDate(a).getTime() - getPostDate(b).getTime();
-      if (byDate !== 0) return byDate;
-      return a.id.localeCompare(b.id);
-    });
-}
-
-/* ------------------------------------------------------------------ */
-/*  Props                                                               */
-/* ------------------------------------------------------------------ */
 interface AutoSchedulePopoverProps {
   posts: Post[];
   onClose: () => void;
@@ -94,9 +57,6 @@ interface AutoSchedulePopoverProps {
   initialDate?: Date;
 }
 
-/* ------------------------------------------------------------------ */
-/*  AutoSchedulePopover                                                 */
-/* ------------------------------------------------------------------ */
 export function AutoSchedulePopover({
   posts,
   onClose,
@@ -105,76 +65,29 @@ export function AutoSchedulePopover({
   initialDate,
 }: AutoSchedulePopoverProps) {
   const today = useMemo(() => new Date(), []);
-  const eligiblePosts = useMemo(() => getEligiblePosts(posts), [posts]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(eligiblePosts.map((p) => p.id))
+  const [selectedDay, setSelectedDay] = useState<Date>(() =>
+    initialDate ? new Date(initialDate) : new Date()
   );
-
-  useEffect(() => {
-    setSelectedIds(new Set(eligiblePosts.map((p) => p.id)));
-  }, [eligiblePosts]);
-
-  const [selectedDay, setSelectedDay] = useState<Date>(() => {
-    const first = eligiblePosts[0];
-    return initialDate
-      ? new Date(initialDate)
-      : first
-      ? new Date(getPostDate(first))
-      : new Date();
-  });
-
-  const [calMonth, setCalMonth] = useState<Date>(() => {
-    const first = eligiblePosts[0];
-    return initialDate
-      ? new Date(initialDate)
-      : first
-      ? new Date(getPostDate(first))
-      : new Date();
-  });
-
-  const [startTime, setStartTime] = useState<string>(() => {
-    return "09:00";
-  });
-
-  const [frequencyHours, setFrequencyHours] = useState<number>(() => {
-    return 3;
-  });
-
-  /* ---------- derived ---------- */
-  const selectedPosts = useMemo(
-    () => eligiblePosts.filter((p) => selectedIds.has(p.id)),
-    [eligiblePosts, selectedIds]
+  const [calMonth, setCalMonth] = useState<Date>(() =>
+    initialDate ? new Date(initialDate) : new Date()
   );
-
-  const groupedEligiblePosts = useMemo(() => {
-    const groups: Array<{ key: string; label: string; posts: Post[] }> = [];
-    for (const post of eligiblePosts) {
-      const date = getPostDate(post);
-      const key = dateGroupKey(date);
-      let group = groups.find((item) => item.key === key);
-      if (!group) {
-        group = { key, label: formatGeneratedDate(date), posts: [] };
-        groups.push(group);
-      }
-      group.posts.push(post);
-    }
-    return groups;
-  }, [eligiblePosts]);
+  const [startTime, setStartTime] = useState("09:00");
+  const [frequencyHours, setFrequencyHours] = useState(3);
 
   const scheduledPreviews = useMemo(() => {
     const [h, m] = startTime.split(":").map(Number);
     const base = new Date(selectedDay);
     base.setHours(h, m, 0, 0);
-    return selectedPosts.map((post, i) => ({
+    return posts.map((post, i) => ({
       post,
       date: new Date(base.getTime() + i * frequencyHours * 3_600_000),
     }));
-  }, [selectedPosts, selectedDay, startTime, frequencyHours]);
+  }, [posts, selectedDay, startTime, frequencyHours]);
 
   const spanDays = useMemo(() => {
-    if (selectedPosts.length <= 1) return 0;
-    return Math.ceil(((selectedPosts.length - 1) * frequencyHours) / 24);
-  }, [selectedPosts.length, frequencyHours]);
+    if (posts.length <= 1) return 0;
+    return Math.ceil(((posts.length - 1) * frequencyHours) / 24);
+  }, [posts.length, frequencyHours]);
 
   const endDate = useMemo(() => {
     const d = new Date(selectedDay);
@@ -183,13 +96,11 @@ export function AutoSchedulePopover({
   }, [selectedDay, spanDays]);
 
   const calCells = useMemo(() => getMonthCells(calMonth), [calMonth]);
-
   const monthLabel = calMonth.toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
   });
 
-  /* ---------- handlers ---------- */
   const navigateCal = (dir: -1 | 1) => {
     const d = new Date(calMonth);
     d.setMonth(d.getMonth() + dir);
@@ -206,81 +117,42 @@ export function AutoSchedulePopover({
     );
   };
 
-  const toggleSelected = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  /* ---------- cell styling helper ---------- */
   const getCellStyle = (cell: Date) => {
     const isSelected = isSameDay(cell, selectedDay);
     const isEnd = spanDays > 0 && isSameDay(cell, endDate);
-    const isInRange =
-      spanDays > 0 &&
-      cell > selectedDay &&
-      cell < endDate;
+    const isInRange = spanDays > 0 && cell > selectedDay && cell < endDate;
     const isToday = isSameDay(cell, today);
     const isCurrentMonth = cell.getMonth() === calMonth.getMonth();
 
     if (isSelected && isEnd) {
-      return {
-        bg: "#1D9BF0",
-        text: "white",
-        radius: "4px",
-        opacity: 1,
-      };
+      return { bg: "#1D9BF0", text: "white", radius: "4px" };
     }
     if (isSelected) {
       return {
         bg: "#1D9BF0",
         text: "white",
         radius: spanDays > 0 ? "4px 0 0 4px" : "4px",
-        opacity: 1,
       };
     }
     if (isEnd) {
-      return {
-        bg: "#1D9BF0",
-        text: "white",
-        radius: "0 4px 4px 0",
-        opacity: 1,
-      };
+      return { bg: "#1D9BF0", text: "white", radius: "0 4px 4px 0" };
     }
     if (isInRange) {
-      return {
-        bg: "rgba(29,155,240,0.15)",
-        text: "#93C5FD",
-        radius: "0",
-        opacity: 1,
-      };
+      return { bg: "rgba(29,155,240,0.15)", text: "#93C5FD", radius: "0" };
     }
     if (isToday) {
-      return {
-        bg: "rgba(29,155,240,0.25)",
-        text: "#93C5FD",
-        radius: "4px",
-        opacity: 1,
-      };
+      return { bg: "rgba(29,155,240,0.25)", text: "#93C5FD", radius: "4px" };
     }
     return {
       bg: "transparent",
       text: isCurrentMonth ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.2)",
       radius: "4px",
-      opacity: 1,
     };
   };
 
-  /* ---------------------------------------------------------------- */
   return (
     <div
-      className={cn(
-        "flex flex-col",
-        isMobileSheet ? "w-full" : "w-[560px] max-w-[calc(100vw-32px)]"
-      )}
+      className={cn("flex flex-col", isMobileSheet ? "w-full" : "w-[360px]")}
       style={
         isMobileSheet
           ? {}
@@ -292,17 +164,16 @@ export function AutoSchedulePopover({
             }
       }
     >
-      {/* ── Header ── */}
       <div
         className="flex items-start justify-between px-[14px] py-[12px]"
         style={{ borderBottom: "0.5px solid #2f3336" }}
       >
         <div>
           <p className="text-[13px] font-medium text-white leading-tight">
-            Auto-schedule posts
+            Schedule selected drafts
           </p>
           <p className="text-[11px] text-white/40 mt-0.5">
-            {selectedPosts.length} of {eligiblePosts.length} unscheduled selected
+            {posts.length} draft{posts.length !== 1 ? "s" : ""} selected
           </p>
         </div>
         <button
@@ -319,11 +190,10 @@ export function AutoSchedulePopover({
           }}
           aria-label="Close"
         >
-          ✕
+          x
         </button>
       </div>
 
-      {/* ── Body ── */}
       <div
         className={cn(
           "flex flex-col overflow-y-auto scrollbar-popup",
@@ -331,100 +201,12 @@ export function AutoSchedulePopover({
         )}
         style={{ gap: 11, padding: "12px 14px" }}
       >
-        {/* Section 1 — Start date (mini calendar) */}
-        <div>
-          <div className="flex items-center justify-between gap-3 mb-2">
-            <p className="text-[11px] text-white/40">Unscheduled posts</p>
-            {eligiblePosts.length > 0 && (
-              <button
-                type="button"
-                onClick={() =>
-                  setSelectedIds(
-                    selectedPosts.length === eligiblePosts.length
-                      ? new Set()
-                      : new Set(eligiblePosts.map((post) => post.id))
-                  )
-                }
-                className="text-[11px] font-medium transition-opacity hover:opacity-80"
-                style={{ color: "#1D9BF0" }}
-              >
-                {selectedPosts.length === eligiblePosts.length ? "Clear all" : "Select all"}
-              </button>
-            )}
-          </div>
-          {eligiblePosts.length === 0 ? (
-            <p className="text-[12px] text-white/25 text-center py-8">
-              No unscheduled posts to schedule.
-            </p>
-          ) : (
-            <div
-              className="flex flex-col overflow-y-auto scrollbar-popup"
-              style={{ gap: 10, maxHeight: isMobileSheet ? 220 : 260 }}
-            >
-              {groupedEligiblePosts.map((group) => (
-                <div key={group.key} className="flex flex-col" style={{ gap: 5 }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white/45 text-[11px] font-medium">
-                      {group.label}
-                    </span>
-                    <span className="text-white/25 text-[10px]">
-                      {group.posts.length} post{group.posts.length !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 6 }}>
-                    {group.posts.map((post) => {
-                      const isSelected = selectedIds.has(post.id);
-                      return (
-                        <button
-                          key={post.id}
-                          onClick={() => toggleSelected(post.id)}
-                          className="flex items-start text-left transition-colors"
-                          style={{
-                            gap: 9,
-                            minHeight: 76,
-                            border: `0.5px solid ${isSelected ? "#1D9BF0" : "#2f3336"}`,
-                            borderRadius: 8,
-                            background: isSelected ? "rgba(29,155,240,0.08)" : "#1F2933",
-                            padding: "9px 10px",
-                          }}
-                        >
-                          <span
-                            className="flex items-center justify-center flex-shrink-0 mt-0.5"
-                            style={{
-                              width: 18,
-                              height: 18,
-                              borderRadius: 5,
-                              border: `1px solid ${isSelected ? "#1D9BF0" : "rgba(255,255,255,0.25)"}`,
-                              background: isSelected ? "#1D9BF0" : "transparent",
-                            }}
-                          >
-                            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span
-                              className="block text-white/80 line-clamp-3"
-                              style={{ fontSize: 12, lineHeight: 1.4 }}
-                            >
-                              {post.content}
-                            </span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div>
           <p className="text-[11px] text-white/40 mb-1.5">Start date</p>
           <div
             className="overflow-hidden"
             style={{ border: "0.5px solid #2f3336", borderRadius: 8 }}
           >
-            {/* Cal header */}
             <div
               className="flex items-center justify-between px-[9px] py-[6px]"
               style={{
@@ -463,11 +245,7 @@ export function AutoSchedulePopover({
               </button>
             </div>
 
-            {/* Day header */}
-            <div
-              className="grid grid-cols-7 px-[5px] pt-[5px]"
-              style={{ gap: 2 }}
-            >
+            <div className="grid grid-cols-7 px-[5px] pt-[5px]" style={{ gap: 2 }}>
               {CAL_DAYS.map((d) => (
                 <div
                   key={d}
@@ -479,11 +257,7 @@ export function AutoSchedulePopover({
               ))}
             </div>
 
-            {/* Day cells */}
-            <div
-              className="grid grid-cols-7 px-[5px] pb-[5px]"
-              style={{ gap: 2 }}
-            >
+            <div className="grid grid-cols-7 px-[5px] pb-[5px]" style={{ gap: 2 }}>
               {calCells.map((cell, idx) => {
                 const s = getCellStyle(cell);
                 return (
@@ -497,7 +271,6 @@ export function AutoSchedulePopover({
                       background: s.bg,
                       color: s.text,
                       borderRadius: s.radius,
-                      opacity: s.opacity,
                     }}
                   >
                     {cell.getDate()}
@@ -508,9 +281,7 @@ export function AutoSchedulePopover({
           </div>
         </div>
 
-        {/* Section 2 — Start time + Frequency */}
         <div className="grid grid-cols-2" style={{ gap: 8 }}>
-          {/* Start time */}
           <div>
             <p className="text-[11px] text-white/40 mb-1.5">Start time</p>
             <input
@@ -526,16 +297,9 @@ export function AutoSchedulePopover({
                 padding: "7px 9px",
                 colorScheme: "dark",
               }}
-              onFocus={(e) =>
-                (e.currentTarget.style.borderColor = "#1D9BF0")
-              }
-              onBlur={(e) =>
-                (e.currentTarget.style.borderColor = "#2f3336")
-              }
             />
           </div>
 
-          {/* Frequency */}
           <div>
             <p className="text-[11px] text-white/40 mb-1.5">Frequency</p>
             <select
@@ -561,14 +325,11 @@ export function AutoSchedulePopover({
           </div>
         </div>
 
-        {/* Section 3 — Post schedule preview */}
         <div>
-          <p className="text-[11px] text-white/40 mb-1.5">
-            Post schedule preview
-          </p>
-          {selectedPosts.length === 0 ? (
+          <p className="text-[11px] text-white/40 mb-1.5">Post schedule preview</p>
+          {posts.length === 0 ? (
             <p className="text-[11px] text-white/20 text-center py-4">
-              Select at least one post to preview the schedule.
+              No drafts selected.
             </p>
           ) : (
             <div
@@ -593,10 +354,7 @@ export function AutoSchedulePopover({
                   >
                     {i + 1}
                   </span>
-                  <span
-                    className="text-white/70 truncate flex-1"
-                    style={{ fontSize: 11 }}
-                  >
+                  <span className="text-white/70 truncate flex-1" style={{ fontSize: 11 }}>
                     {post.content}
                   </span>
                   <span
@@ -611,7 +369,6 @@ export function AutoSchedulePopover({
           )}
         </div>
 
-        {/* Section 4 — Info box */}
         <div
           className="flex items-start gap-2"
           style={{
@@ -626,13 +383,10 @@ export function AutoSchedulePopover({
             className="flex-shrink-0 mt-[1px]"
             style={{ color: "#93C5FD" }}
           />
-          <p
-            className="leading-[1.45]"
-            style={{ fontSize: 12, color: "#93C5FD" }}
-          >
+          <p className="leading-[1.45]" style={{ fontSize: 12, color: "#93C5FD" }}>
             {spanDays === 0 ? (
               <>
-                Selected posts will be scheduled on{" "}
+                Selected drafts will be scheduled on{" "}
                 <strong style={{ fontWeight: 500 }}>
                   {selectedDay.toLocaleDateString("en-US", {
                     weekday: "long",
@@ -645,19 +399,16 @@ export function AutoSchedulePopover({
             ) : (
               <>
                 Posting will span{" "}
-                <strong style={{ fontWeight: 500 }}>{spanDays} day{spanDays !== 1 ? "s" : ""}</strong>{" "}
-                and end on{" "}
                 <strong style={{ fontWeight: 500 }}>
-                  {formatEndDate(endDate)}
-                </strong>
-                .
+                  {spanDays} day{spanDays !== 1 ? "s" : ""}
+                </strong>{" "}
+                and end on <strong style={{ fontWeight: 500 }}>{formatEndDate(endDate)}</strong>.
               </>
             )}
           </p>
         </div>
       </div>
 
-      {/* ── Footer ── */}
       <div
         className="flex items-center flex-shrink-0"
         style={{
@@ -683,7 +434,7 @@ export function AutoSchedulePopover({
         </button>
         <button
           onClick={handleConfirm}
-          disabled={selectedPosts.length === 0}
+          disabled={posts.length === 0}
           className="text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
             flex: 1.4,
@@ -695,7 +446,7 @@ export function AutoSchedulePopover({
             border: "none",
           }}
         >
-          Confirm schedule →
+          Confirm schedule
         </button>
       </div>
     </div>

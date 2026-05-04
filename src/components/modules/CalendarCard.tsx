@@ -1,16 +1,12 @@
 "use client";
 
-import React, { useEffect, useRef, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, CalendarDays, Sparkles } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useMemo, useState } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { Post, dayKey } from "@/components/modules/EditScheduleModal";
-import { AutoSchedulePopover } from "@/components/modules/AutoSchedulePopover";
 import { cn } from "@/lib/utils";
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                             */
-/* ------------------------------------------------------------------ */
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const STATUS_ORDER: Record<string, number> = { posted: 0, scheduled: 1, draft: 2 };
 
 function getWeekDays(month: Date, weekNumber: number): Date[] {
   const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
@@ -29,9 +25,7 @@ function getWeekNumberForDate(date: Date): number {
   const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
   const firstSunday = new Date(firstDay);
   firstSunday.setDate(firstDay.getDate() - firstDay.getDay());
-  const diffDays = Math.floor(
-    (date.getTime() - firstSunday.getTime()) / 86400000
-  );
+  const diffDays = Math.floor((date.getTime() - firstSunday.getTime()) / 86400000);
   return Math.floor(diffDays / 7) + 1;
 }
 
@@ -39,16 +33,7 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-/* ------------------------------------------------------------------ */
-/*  PanelPostCard                                                       */
-/* ------------------------------------------------------------------ */
-function PanelPostCard({
-  post,
-  onClick,
-}: {
-  post: Post;
-  onClick: () => void;
-}) {
+function PanelPostCard({ post, onClick }: { post: Post; onClick: () => void }) {
   const isPosted = post.status === "posted";
   const isDraft = post.status === "draft";
   const time = !isDraft && post.scheduledDate ? formatTime(post.scheduledDate) : null;
@@ -76,16 +61,7 @@ function PanelPostCard({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  CompactPostCard  (used when a day has 8+ posts)                    */
-/* ------------------------------------------------------------------ */
-function CompactPostCard({
-  post,
-  onClick,
-}: {
-  post: Post;
-  onClick: () => void;
-}) {
+function CompactPostCard({ post, onClick }: { post: Post; onClick: () => void }) {
   const isPosted = post.status === "posted";
   const isDraft = post.status === "draft";
   const time = !isDraft && post.scheduledDate ? formatTime(post.scheduledDate) : null;
@@ -113,72 +89,52 @@ function CompactPostCard({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  CalendarCard                                                        */
-/* ------------------------------------------------------------------ */
-const STATUS_ORDER: Record<string, number> = { posted: 0, scheduled: 1, draft: 2 };
-
 interface CalendarCardProps {
   posts: Post[];
   onPostClick: (post: Post) => void;
-  onBulkSchedule: (scheduledPosts: Post[]) => void;
+  onAutoScheduleClick: (posts: Post[], initialDate?: Date) => void;
   onGenerateClick: (day: Date) => void;
   onDayClick: (day: Date, posts: Post[]) => void;
 }
 
-export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateClick, onDayClick }: CalendarCardProps) {
+export function CalendarCard({
+  posts,
+  onPostClick,
+  onAutoScheduleClick,
+  onGenerateClick,
+  onDayClick,
+}: CalendarCardProps) {
   const today = useMemo(() => new Date(), []);
   const todayKey = useMemo(() => dayKey(today), [today]);
-
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
-  const [activeWeek, setActiveWeek] = useState(() =>
-    getWeekNumberForDate(new Date())
-  );
+  const [activeWeek, setActiveWeek] = useState(() => getWeekNumberForDate(new Date()));
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
-  const [autoScheduleOpen, setAutoScheduleOpen] = useState(false);
-  const autoScheduleRef = useRef<HTMLDivElement>(null);
 
-  /* ---------- derived data ---------- */
   const postsByDay = useMemo(() => {
     const map: Record<string, Post[]> = {};
-    posts.forEach((p) => {
-      // Group by targetDate (generation day) if available, else fall back to scheduledDate
-      const calendarDay = p.targetDate ?? p.scheduledDate;
+    posts.forEach((post) => {
+      const calendarDay = post.targetDate ?? post.scheduledDate;
       if (!calendarDay) return;
       const key = dayKey(calendarDay);
       if (!map[key]) map[key] = [];
-      map[key].push(p);
+      map[key].push(post);
     });
-    // Sort each day: posted → scheduled → draft
     Object.values(map).forEach((arr) =>
-      arr.sort(
-        (a, b) =>
-          (STATUS_ORDER[a.status] ?? 2) - (STATUS_ORDER[b.status] ?? 2)
-      )
+      arr.sort((a, b) => (STATUS_ORDER[a.status] ?? 2) - (STATUS_ORDER[b.status] ?? 2))
     );
     return map;
   }, [posts]);
 
-  const weekDays = useMemo(
-    () => getWeekDays(currentMonth, activeWeek),
-    [currentMonth, activeWeek]
-  );
-
+  const weekDays = useMemo(() => getWeekDays(currentMonth, activeWeek), [currentMonth, activeWeek]);
   const selectedDayKey = dayKey(selectedDay);
   const selectedDayPosts = postsByDay[selectedDayKey] ?? [];
-
-  const monthLabel = currentMonth.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
-
+  const monthLabel = currentMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const panelDayLabel = selectedDay.toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
     day: "numeric",
   });
 
-  /* ---------- handlers ---------- */
   const navigateMonth = (dir: -1 | 1) => {
     const d = new Date(currentMonth);
     d.setMonth(d.getMonth() + dir);
@@ -192,35 +148,9 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
     onDayClick(day, postsByDay[key] ?? []);
   };
 
-  /* Close auto-schedule popover on outside click or Escape */
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setAutoScheduleOpen(false);
-    };
-    const handleClick = (e: MouseEvent) => {
-      if (
-        autoScheduleOpen &&
-        autoScheduleRef.current &&
-        !autoScheduleRef.current.contains(e.target as Node)
-      ) {
-        setAutoScheduleOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    document.addEventListener("mousedown", handleClick);
-    return () => {
-      window.removeEventListener("keydown", handleKey);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [autoScheduleOpen]);
-
-  /* ---------------------------------------------------------------- */
   return (
     <div className="relative bg-[#0B0F19] rounded-xl border border-[#1F2933]">
-
-      {/* ── Top bar ── */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#1F2933]">
-        {/* Month nav */}
         <div className="flex items-center gap-1.5">
           <button
             onClick={() => navigateMonth(-1)}
@@ -241,7 +171,6 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
           </button>
         </div>
 
-        {/* Week tabs + Auto-schedule button */}
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-0.5">
             {[1, 2, 3, 4].map((w) => (
@@ -261,55 +190,20 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
             ))}
           </div>
 
-          {/* Auto-schedule button + popover anchor */}
-          <div className="relative" ref={autoScheduleRef}>
-            <button
-              onClick={() => setAutoScheduleOpen((v) => !v)}
-              className={cn(
-                "flex items-center gap-1.5 text-white hover:opacity-90 transition-opacity",
-                "px-[7px] sm:px-[11px] py-[5px] rounded-[8px] text-[12px] font-medium"
-              )}
-              style={{ background: "#1D9BF0" }}
-            >
-              <CalendarDays className="w-3 h-3" />
-              <span className="hidden sm:inline">Auto-schedule</span>
-            </button>
-
-            {/* Desktop popover */}
-            <AnimatePresence>
-              {autoScheduleOpen && (
-                <motion.div
-                  key="auto-schedule-popover"
-                  className="hidden md:block absolute right-0 z-50"
-                  style={{ top: "calc(100% + 8px)" }}
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.22, ease: "easeOut" }}
-                >
-                  <AutoSchedulePopover
-                    posts={posts}
-                    onClose={() => setAutoScheduleOpen(false)}
-                    onConfirm={(scheduled) => {
-                      onBulkSchedule(scheduled);
-                      setAutoScheduleOpen(false);
-                    }}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <button
+            onClick={() => onAutoScheduleClick(posts)}
+            className="flex items-center gap-1.5 text-white hover:opacity-90 transition-opacity px-[7px] sm:px-[11px] py-[5px] rounded-[8px] text-[12px] font-medium"
+            style={{ background: "#1D9BF0" }}
+          >
+            <CalendarDays className="w-3 h-3" />
+            <span className="hidden sm:inline">Auto-schedule</span>
+          </button>
         </div>
       </div>
 
-      {/* ── Calendar body: day grid + side panel ── */}
       <div className="flex min-h-0 overflow-hidden">
-
-        {/* Day grid */}
         <div className="flex-1 min-w-0 overflow-x-auto">
           <div className="min-w-[340px]">
-
-            {/* Day-name header row */}
             <div className="grid grid-cols-7 border-b border-[#1F2933]">
               {DAY_NAMES.map((name) => (
                 <div
@@ -321,15 +215,13 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
               ))}
             </div>
 
-            {/* Day cells */}
             <div className="grid grid-cols-7">
               {weekDays.map((day, idx) => {
                 const key = dayKey(day);
                 const dayPosts = postsByDay[key] ?? [];
                 const isToday = key === todayKey;
                 const isSelected = key === selectedDayKey;
-                const isCurrentMonth =
-                  day.getMonth() === currentMonth.getMonth();
+                const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
                 const visibleDots = dayPosts.slice(0, 5);
                 const extraCount = dayPosts.length - visibleDots.length;
                 const isLastCol = idx === 6;
@@ -342,12 +234,9 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
                       "min-h-[72px] p-2 flex flex-col gap-1 text-left transition-colors",
                       "border-b border-[#1F2933]/30",
                       !isLastCol && "border-r border-[#1F2933]/30",
-                      isSelected
-                        ? "bg-[#0F1419]"
-                        : "hover:bg-[#0d1320]/60"
+                      isSelected ? "bg-[#0F1419]" : "hover:bg-[#0d1320]/60"
                     )}
                   >
-                    {/* Day number */}
                     <div>
                       {isToday ? (
                         <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-[#1D9BF0] text-white text-xs font-bold leading-none">
@@ -369,17 +258,14 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
                       )}
                     </div>
 
-                    {/* Status dots + overflow badge */}
                     {visibleDots.length > 0 && (
                       <div className="flex items-center gap-0.5 flex-wrap">
-                        {visibleDots.map((p, i) => (
+                        {visibleDots.map((post, i) => (
                           <span
                             key={i}
                             className={cn(
                               "w-1.5 h-1.5 rounded-full inline-block",
-                              p.status === "posted"
-                                ? "bg-[#22c55e]"
-                                : "bg-[#1D9BF0]"
+                              post.status === "posted" ? "bg-[#22c55e]" : "bg-[#1D9BF0]"
                             )}
                           />
                         ))}
@@ -391,11 +277,9 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
                       </div>
                     )}
 
-                    {/* Post count label */}
                     {dayPosts.length > 0 && (
                       <span className="text-[10px] text-white/30 leading-none">
-                        {dayPosts.length}{" "}
-                        {dayPosts.length === 1 ? "post" : "posts"}
+                        {dayPosts.length} {dayPosts.length === 1 ? "post" : "posts"}
                       </span>
                     )}
                   </button>
@@ -405,23 +289,16 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
           </div>
         </div>
 
-        {/* ── Side panel (desktop only) ── */}
         <div className="hidden md:flex w-[220px] flex-shrink-0 border-l border-[#1F2933] flex-col max-h-[280px]">
-          {/* Panel header */}
           <div className="px-4 py-3 border-b border-[#1F2933] flex-shrink-0">
-            <p className="text-white font-semibold text-sm leading-tight">
-              {panelDayLabel}
-            </p>
+            <p className="text-white font-semibold text-sm leading-tight">{panelDayLabel}</p>
             <p className="text-white/40 text-xs mt-0.5">
               {selectedDayPosts.length === 0
                 ? "No posts"
-                : `${selectedDayPosts.length} post${
-                    selectedDayPosts.length !== 1 ? "s" : ""
-                  } scheduled`}
+                : `${selectedDayPosts.length} post${selectedDayPosts.length !== 1 ? "s" : ""} scheduled`}
             </p>
           </div>
 
-          {/* Scrollable post list */}
           <div className="scrollbar-calendar flex-1 overflow-y-auto p-3 space-y-1">
             {selectedDayPosts.length === 0 ? (
               <div className="flex flex-col items-center justify-center pt-5 pb-3 gap-3">
@@ -439,65 +316,16 @@ export function CalendarCard({ posts, onPostClick, onBulkSchedule, onGenerateCli
               </div>
             ) : selectedDayPosts.length >= 8 ? (
               selectedDayPosts.map((post) => (
-                <CompactPostCard
-                  key={post.id}
-                  post={post}
-                  onClick={() => onPostClick(post)}
-                />
+                <CompactPostCard key={post.id} post={post} onClick={() => onPostClick(post)} />
               ))
             ) : (
               selectedDayPosts.map((post) => (
-                <PanelPostCard
-                  key={post.id}
-                  post={post}
-                  onClick={() => onPostClick(post)}
-                />
+                <PanelPostCard key={post.id} post={post} onClick={() => onPostClick(post)} />
               ))
             )}
           </div>
         </div>
       </div>
-
-      {/* ── Mobile: Auto-schedule bottom sheet ── */}
-      <AnimatePresence>
-        {autoScheduleOpen && (
-          <>
-            <motion.div
-              key="auto-sched-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={() => setAutoScheduleOpen(false)}
-              className="md:hidden fixed inset-0 z-40 bg-black/50"
-            />
-            <motion.div
-              key="auto-sched-sheet"
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ duration: 0.25, ease: "easeOut" as const }}
-              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0F1419] border-t border-x border-[#1F2933] rounded-t-2xl overflow-y-auto scrollbar-popup"
-              style={{ maxHeight: "90vh" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Drag handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-8 h-1 rounded-full bg-[#1F2933]" />
-              </div>
-              <AutoSchedulePopover
-                posts={posts}
-                onClose={() => setAutoScheduleOpen(false)}
-                onConfirm={(scheduled) => {
-                  onBulkSchedule(scheduled);
-                  setAutoScheduleOpen(false);
-                }}
-                isMobileSheet
-              />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
