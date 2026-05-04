@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
-import { Post, dayKey } from "@/components/modules/EditScheduleModal";
+import { Post, dayKey, getCalendarPostDate } from "@/components/modules/EditScheduleModal";
 import { cn } from "@/lib/utils";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -113,7 +113,7 @@ export function CalendarCard({
   const postsByDay = useMemo(() => {
     const map: Record<string, Post[]> = {};
     posts.forEach((post) => {
-      const calendarDay = post.targetDate ?? post.scheduledDate;
+      const calendarDay = getCalendarPostDate(post);
       if (!calendarDay) return;
       const key = dayKey(calendarDay);
       if (!map[key]) map[key] = [];

@@ -23,7 +23,7 @@ export type Post = {
   status: "draft" | "scheduled" | "posted";
   scheduledDate?: Date;
   scheduledPostId?: string;
-  /** Calendar day this post was generated for — used for grouping in the calendar view */
+  /** Calendar day this post was generated for, kept so drafts can stay on their planned day. */
   targetDate?: Date;
 };
 
@@ -58,6 +58,13 @@ export function ordinalDate(d: Date) {
 
 export function dayKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+export function getCalendarPostDate(post: Post) {
+  if ((post.status === "scheduled" || post.status === "posted") && post.scheduledDate) {
+    return post.scheduledDate;
+  }
+  return post.targetDate ?? post.scheduledDate;
 }
 
 /* ------------------------------------------------------------------ */

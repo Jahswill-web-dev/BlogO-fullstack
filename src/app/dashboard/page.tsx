@@ -14,6 +14,7 @@ import {
   EditScheduleModal,
   Post,
   dayKey,
+  getCalendarPostDate,
 } from "@/components/modules/EditScheduleModal";
 import { OnboardingPostsModal } from "@/components/modules/OnboardingPostsModal";
 import { CalendarCard } from "@/components/modules/CalendarCard";
@@ -118,7 +119,7 @@ export default function DashboardPage() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const crudPosts: Post[] = crudRaw.map((p: any): Post | null => {
           const targetDate = p.targetDate ? new Date(p.targetDate) : undefined;
-          const linkedId = p.meta?.scheduledPostId as string | undefined;
+          const linkedId = (p.meta?.scheduledPostId ?? p.scheduledPostId) as string | undefined;
           const scheduledInfo = linkedId ? scheduledMap.get(linkedId) : undefined;
 
           if (linkedId) linkedScheduledIds.add(linkedId);
@@ -135,7 +136,7 @@ export default function DashboardPage() {
                 targetDate,
               };
             }
-            // Live scheduled post — merge status/time but keep targetDate for calendar grouping
+            // Live scheduled post: merge status/time while preserving targetDate for draft history.
             return {
               id: p._id,
               content: scheduledInfo.content ?? p.finalPost,
@@ -276,7 +277,7 @@ export default function DashboardPage() {
   const postsByDay = useMemo(() => {
     const map: Record<string, Post[]> = {};
     posts.forEach((p) => {
-      const calendarDay = p.targetDate ?? p.scheduledDate;
+      const calendarDay = getCalendarPostDate(p);
       if (!calendarDay) return;
       const key = dayKey(calendarDay);
       if (!map[key]) map[key] = [];
