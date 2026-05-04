@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Info } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Check, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { Post } from "@/components/modules/EditScheduleModal";
 import { cn } from "@/lib/utils";
 
@@ -55,6 +55,10 @@ function formatEndDate(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function getEligiblePosts(posts: Post[]) {
+  return posts.filter((p) => p.status !== "posted");
+}
+
 /* ------------------------------------------------------------------ */
 /*  Props                                                               */
 /* ------------------------------------------------------------------ */
@@ -63,6 +67,7 @@ interface AutoSchedulePopoverProps {
   onClose: () => void;
   onConfirm: (scheduledPosts: Post[]) => void;
   isMobileSheet?: boolean;
+  initialDate?: Date;
 }
 
 /* ------------------------------------------------------------------ */
@@ -73,8 +78,17 @@ export function AutoSchedulePopover({
   onClose,
   onConfirm,
   isMobileSheet = false,
+  initialDate,
 }: AutoSchedulePopoverProps) {
   const today = useMemo(() => new Date(), []);
+  const eligiblePosts = useMemo(() => getEligiblePosts(posts), [posts]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(eligiblePosts.map((p) => p.id))
+  );
+
+  useEffect(() => {
+    setSelectedIds(new Set(eligiblePosts.map((p) => p.id)));
+  }, [eligiblePosts]);
 
   // Derive initial values from already-scheduled posts so the user sees their
   // existing schedule pre-filled and only has to tweak what they want to change.
@@ -82,14 +96,14 @@ export function AutoSchedulePopover({
     const first = posts
       .filter((p) => p.status === "scheduled" && p.scheduledDate)
       .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime())[0];
-    return first ? new Date(first.scheduledDate!) : new Date();
+    return first ? new Date(first.scheduledDate!) : initialDate ? new Date(initialDate) : new Date();
   });
 
   const [calMonth, setCalMonth] = useState<Date>(() => {
     const first = posts
       .filter((p) => p.status === "scheduled" && p.scheduledDate)
       .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime())[0];
-    return first ? new Date(first.scheduledDate!) : new Date();
+    return first ? new Date(first.scheduledDate!) : initialDate ? new Date(initialDate) : new Date();
   });
 
   const [startTime, setStartTime] = useState<string>(() => {
@@ -117,27 +131,25 @@ export function AutoSchedulePopover({
   });
 
   /* ---------- derived ---------- */
-  // Include draft AND already-scheduled posts so the user can redistribute them.
-  // Only exclude posts that have already been published.
-  const unscheduledPosts = useMemo(
-    () => posts.filter((p) => p.status !== "posted"),
-    [posts]
+  const selectedPosts = useMemo(
+    () => eligiblePosts.filter((p) => selectedIds.has(p.id)),
+    [eligiblePosts, selectedIds]
   );
 
   const scheduledPreviews = useMemo(() => {
     const [h, m] = startTime.split(":").map(Number);
     const base = new Date(selectedDay);
     base.setHours(h, m, 0, 0);
-    return unscheduledPosts.map((post, i) => ({
+    return selectedPosts.map((post, i) => ({
       post,
       date: new Date(base.getTime() + i * frequencyHours * 3_600_000),
     }));
-  }, [unscheduledPosts, selectedDay, startTime, frequencyHours]);
+  }, [selectedPosts, selectedDay, startTime, frequencyHours]);
 
   const spanDays = useMemo(() => {
-    if (unscheduledPosts.length <= 1) return 0;
-    return Math.ceil(((unscheduledPosts.length - 1) * frequencyHours) / 24);
-  }, [unscheduledPosts.length, frequencyHours]);
+    if (selectedPosts.length <= 1) return 0;
+    return Math.ceil(((selectedPosts.length - 1) * frequencyHours) / 24);
+  }, [selectedPosts.length, frequencyHours]);
 
   const endDate = useMemo(() => {
     const d = new Date(selectedDay);
@@ -167,6 +179,15 @@ export function AutoSchedulePopover({
         status: "scheduled" as const,
       }))
     );
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   /* ---------- cell styling helper ---------- */
@@ -256,8 +277,7 @@ export function AutoSchedulePopover({
             Auto-schedule posts
           </p>
           <p className="text-[11px] text-white/40 mt-0.5">
-            {unscheduledPosts.length} post
-            {unscheduledPosts.length !== 1 ? "s" : ""} to distribute
+            {selectedPosts.length} of {eligiblePosts.length} selected
           </p>
         </div>
         <button
@@ -287,6 +307,62 @@ export function AutoSchedulePopover({
         style={{ gap: 11, padding: "12px 14px" }}
       >
         {/* Section 1 — Start date (mini calendar) */}
+        <div>
+          <p className="text-[11px] text-white/40 mb-1.5">Select posts</p>
+          {eligiblePosts.length === 0 ? (
+            <p className="text-[11px] text-white/20 text-center py-4">
+              No draft or scheduled posts to schedule.
+            </p>
+          ) : (
+            <div
+              className="flex flex-col overflow-y-auto scrollbar-popup"
+              style={{ gap: 4, maxHeight: 132 }}
+            >
+              {eligiblePosts.map((post) => {
+                const isSelected = selectedIds.has(post.id);
+                return (
+                  <button
+                    key={post.id}
+                    onClick={() => toggleSelected(post.id)}
+                    className="flex items-start text-left transition-colors"
+                    style={{
+                      gap: 8,
+                      border: `0.5px solid ${isSelected ? "#1D9BF0" : "#2f3336"}`,
+                      borderRadius: 8,
+                      background: isSelected ? "rgba(29,155,240,0.08)" : "#1F2933",
+                      padding: "7px 9px",
+                    }}
+                  >
+                    <span
+                      className="flex items-center justify-center flex-shrink-0 mt-0.5"
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 4,
+                        border: `1px solid ${isSelected ? "#1D9BF0" : "rgba(255,255,255,0.25)"}`,
+                        background: isSelected ? "#1D9BF0" : "transparent",
+                      }}
+                    >
+                      {isSelected && <Check className="w-3 h-3 text-white" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className="block text-white/75 line-clamp-2"
+                        style={{ fontSize: 11, lineHeight: 1.35 }}
+                      >
+                        {post.content}
+                      </span>
+                      <span className="text-white/35" style={{ fontSize: 10 }}>
+                        {post.status === "scheduled" ? "Reschedule existing" : "Draft"}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <div>
           <p className="text-[11px] text-white/40 mb-1.5">Start date</p>
           <div
@@ -435,9 +511,9 @@ export function AutoSchedulePopover({
           <p className="text-[11px] text-white/40 mb-1.5">
             Post schedule preview
           </p>
-          {unscheduledPosts.length === 0 ? (
+          {selectedPosts.length === 0 ? (
             <p className="text-[11px] text-white/20 text-center py-4">
-              No draft posts to schedule.
+              Select at least one post to preview the schedule.
             </p>
           ) : (
             <div
@@ -501,7 +577,7 @@ export function AutoSchedulePopover({
           >
             {spanDays === 0 ? (
               <>
-                All posts will be scheduled on{" "}
+                Selected posts will be scheduled on{" "}
                 <strong style={{ fontWeight: 500 }}>
                   {selectedDay.toLocaleDateString("en-US", {
                     weekday: "long",
@@ -552,7 +628,7 @@ export function AutoSchedulePopover({
         </button>
         <button
           onClick={handleConfirm}
-          disabled={unscheduledPosts.length === 0}
+          disabled={selectedPosts.length === 0}
           className="text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           style={{
             flex: 1.4,

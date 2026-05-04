@@ -269,8 +269,9 @@ export default function DashboardPage() {
   const postsByDay = useMemo(() => {
     const map: Record<string, Post[]> = {};
     posts.forEach((p) => {
-      if (!p.scheduledDate) return;
-      const key = dayKey(p.scheduledDate);
+      const calendarDay = p.targetDate ?? p.scheduledDate;
+      if (!calendarDay) return;
+      const key = dayKey(calendarDay);
       if (!map[key]) map[key] = [];
       map[key].push(p);
     });
@@ -539,6 +540,12 @@ export default function DashboardPage() {
       }
     }
 
+    const previousById = new Map(
+      posts
+        .filter((p) => scheduledPosts.some((scheduled) => scheduled.id === p.id))
+        .map((p) => [p.id, p])
+    );
+
     // Optimistic update
     setPosts((prev) =>
       prev.map((p) => {
@@ -547,34 +554,39 @@ export default function DashboardPage() {
       })
     );
 
-    const startTime = scheduledPosts[0].scheduledDate!.toISOString();
-    const frequencyHours =
-      scheduledPosts.length > 1
-        ? (scheduledPosts[1].scheduledDate!.getTime() -
-            scheduledPosts[0].scheduledDate!.getTime()) /
-          3_600_000
-        : 1;
+    const newlyCreatedScheduledIds: string[] = [];
 
     try {
-      const result = await api.scheduleBulkPosts(
-        scheduledPosts.map((p) => ({ content: p.content })),
-        startTime,
-        frequencyHours
-      );
+      const idMap = new Map<string, string>();
 
-      const idMap = new Map(
-        result.posts.map((rp, i) => [scheduledPosts[i]?.id, rp._id])
-      );
-
-      // Mark each CRUD post as scheduled in the backend (non-blocking)
-      scheduledPosts.forEach((p, i) => {
-        const scheduledPostId = result.posts[i]?._id;
-        if (scheduledPostId) {
-          api
-            .updatePost(p.id, { meta: { scheduled: true, scheduledPostId } })
-            .catch(() => {});
+      for (const post of scheduledPosts) {
+        if (!post.scheduledDate) {
+          throw new Error("Missing schedule time for selected post");
         }
-      });
+
+        if (post.scheduledPostId) {
+          await api.updateScheduledPost(post.scheduledPostId, {
+            content: post.content,
+            scheduled_at: post.scheduledDate.toISOString(),
+          });
+          idMap.set(post.id, post.scheduledPostId);
+        } else {
+          const result = await api.schedulePost(
+            post.content,
+            post.scheduledDate.toISOString()
+          );
+          const scheduledPostId = result.post._id;
+          newlyCreatedScheduledIds.push(scheduledPostId);
+
+          if (post.id !== scheduledPostId) {
+            await api.updatePost(post.id, {
+              finalPost: post.content,
+              meta: { scheduled: true, scheduledPostId },
+            });
+          }
+          idMap.set(post.id, scheduledPostId);
+        }
+      }
 
       setPosts((prev) =>
         prev.map((p) =>
@@ -586,25 +598,14 @@ export default function DashboardPage() {
       );
     } catch (err) {
       if (handleAccessError(err)) {
-        const ids = new Set(scheduledPosts.map((p) => p.id));
-        setPosts((prev) =>
-          prev.map((p) =>
-            ids.has(p.id)
-              ? { ...p, status: "draft" as const, scheduledDate: undefined }
-              : p
-          )
-        );
+        setPosts((prev) => prev.map((p) => previousById.get(p.id) ?? p));
         return;
       }
       console.error("[Dashboard] Bulk schedule failed:", err);
-      const ids = new Set(scheduledPosts.map((p) => p.id));
-      setPosts((prev) =>
-        prev.map((p) =>
-          ids.has(p.id)
-            ? { ...p, status: "draft" as const, scheduledDate: undefined }
-            : p
-        )
+      await Promise.allSettled(
+        newlyCreatedScheduledIds.map((id) => api.cancelScheduledPost(id))
       );
+      setPosts((prev) => prev.map((p) => previousById.get(p.id) ?? p));
       toast.error("Failed to schedule posts. Please try again.");
     }
   };
@@ -642,6 +643,8 @@ export default function DashboardPage() {
       )
     );
 
+    let newlyCreatedScheduledId: string | undefined;
+
     try {
       if (post.scheduledPostId) {
         // Reschedule an already-scheduled post
@@ -653,6 +656,7 @@ export default function DashboardPage() {
         // Schedule a draft for the first time
         const result = await api.schedulePost(content, date.toISOString());
         const scheduledPostId = result.post._id;
+        newlyCreatedScheduledId = scheduledPostId;
         // Mark the CRUD post so it doesn't reappear as a draft on refresh
         await api.updatePost(id, {
           finalPost: content,
@@ -665,6 +669,9 @@ export default function DashboardPage() {
       toast.success("Post scheduled!");
     } catch (err) {
       if (handleAccessError(err)) {
+        if (newlyCreatedScheduledId) {
+          await api.cancelScheduledPost(newlyCreatedScheduledId).catch(() => {});
+        }
         setPosts((prev) =>
           prev.map((p) =>
             p.id === id
@@ -675,6 +682,9 @@ export default function DashboardPage() {
         return;
       }
       console.error("[Dashboard] Schedule post failed:", err);
+      if (newlyCreatedScheduledId) {
+        await api.cancelScheduledPost(newlyCreatedScheduledId).catch(() => {});
+      }
       // Revert optimistic update
       setPosts((prev) =>
         prev.map((p) =>
@@ -1082,6 +1092,7 @@ export default function DashboardPage() {
               setDayPopupDate(null);
               setShowGeneratePanel(true);
             }}
+            onAutoSchedule={handleBulkSchedule}
           />
         )}
       </AnimatePresence>

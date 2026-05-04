@@ -172,6 +172,7 @@ export type ScheduledApiPost = {
   postedAt: string | null;
   batchId: string | null;
   platform: string;
+  mediaUrls?: string[];
 };
 
 export type UserPlan = {
@@ -293,15 +294,19 @@ export const api = {
     }),
 
   /** Schedule a single post for a specific date/time */
-  schedulePost: (content: string, scheduled_at: string) =>
+  schedulePost: (
+    content: string,
+    scheduled_at: string,
+    options: { media_urls?: string[]; platform?: string } = {}
+  ) =>
     apiFetch<{ success: boolean; post: ScheduledApiPost }>("/api/posts/schedule", {
       method: "POST",
-      body: JSON.stringify({ content, scheduled_at }),
+      body: JSON.stringify({ content, scheduled_at, ...options }),
     }),
 
   /** Bulk-schedule multiple posts with automatic time spacing */
   scheduleBulkPosts: (
-    posts: { content: string }[],
+    posts: { content: string; mediaUrls?: string[]; platform?: string }[],
     start_time: string,
     frequency_hours: number
   ) =>
@@ -323,7 +328,7 @@ export const api = {
   /** Edit content or scheduled time of a pending post */
   updateScheduledPost: (
     id: string,
-    body: { content?: string; scheduled_at?: string }
+    body: { content?: string; scheduled_at?: string; media_urls?: string[]; platform?: string }
   ) =>
     apiFetch<{ success: boolean; post: ScheduledApiPost }>(`/api/posts/scheduled/${id}`, {
       method: "PATCH",

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Sparkles } from "lucide-react";
+import { CalendarDays, Sparkles } from "lucide-react";
 import { Post } from "@/components/modules/EditScheduleModal";
+import { AutoSchedulePopover } from "@/components/modules/AutoSchedulePopover";
 import { AuthUser } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ interface DayPostsPopupProps {
   onClose: () => void;
   onPostClick: (post: Post) => void;
   onGenerateClick: () => void;
+  onAutoSchedule: (scheduledPosts: Post[]) => void;
 }
 
 /* ------------------------------------------------------------------ */
@@ -73,7 +75,14 @@ function DayPostsContent({
   onClose,
   onPostClick,
   onGenerateClick,
+  onAutoSchedule,
 }: DayPostsPopupProps) {
+  const [autoScheduleOpen, setAutoScheduleOpen] = useState(false);
+  const eligiblePosts = useMemo(
+    () => posts.filter((post) => post.status !== "posted"),
+    [posts]
+  );
+
   return (
     <div className="flex flex-col min-h-0 flex-1">
       {/* ── Header ── */}
@@ -91,9 +100,20 @@ function DayPostsContent({
               : `${posts.length} post${posts.length !== 1 ? "s" : ""} scheduled`}
           </p>
         </div>
-        <button
+        <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+          {eligiblePosts.length > 0 && (
+            <button
+              onClick={() => setAutoScheduleOpen((open) => !open)}
+              className="flex items-center gap-1.5 text-white text-[12px] font-medium px-2.5 py-1.5 rounded-lg transition-opacity hover:opacity-90"
+              style={{ background: "#1D9BF0" }}
+            >
+              <CalendarDays className="w-3 h-3" />
+              Auto-schedule
+            </button>
+          )}
+          <button
           onClick={onClose}
-          className="flex items-center justify-center text-white/60 hover:text-white transition-colors flex-shrink-0 ml-3"
+          className="flex items-center justify-center text-white/60 hover:text-white transition-colors"
           style={{
             width: 26,
             height: 26,
@@ -105,10 +125,30 @@ function DayPostsContent({
           aria-label="Close"
         >
           ✕
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* ── Post list ── */}
+      {autoScheduleOpen && (
+        <div
+          className="border-b border-[#1F2933] p-3"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <AutoSchedulePopover
+            posts={posts}
+            onClose={() => setAutoScheduleOpen(false)}
+            onConfirm={(scheduledPosts) => {
+              onAutoSchedule(scheduledPosts);
+              setAutoScheduleOpen(false);
+              onClose();
+            }}
+            isMobileSheet
+            initialDate={day}
+          />
+        </div>
+      )}
+
       <div className="overflow-y-auto scrollbar-popup flex-1 p-3 space-y-2">
         {posts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
