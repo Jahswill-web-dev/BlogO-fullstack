@@ -79,7 +79,7 @@ function DayPostsContent({
 }: DayPostsPopupProps) {
   const [autoScheduleOpen, setAutoScheduleOpen] = useState(false);
   const eligiblePosts = useMemo(
-    () => posts.filter((post) => post.status !== "posted"),
+    () => posts.filter((post) => post.status === "draft" && !post.scheduledPostId),
     [posts]
   );
 
@@ -259,7 +259,7 @@ export function DayPostsPopup(props: DayPostsPopupProps) {
         onClick={onClose}
       >
         <motion.div
-          className="w-full max-w-[460px] mx-4 rounded-2xl overflow-hidden flex flex-col"
+          className="w-full max-w-[640px] mx-4 rounded-2xl overflow-hidden flex flex-col"
           style={{
             background: "#0F1419",
             border: "0.5px solid #1F2933",

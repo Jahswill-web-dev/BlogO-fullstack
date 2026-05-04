@@ -55,8 +55,32 @@ function formatEndDate(date: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function getPostDate(post: Post): Date {
+  return post.targetDate ?? post.scheduledDate ?? new Date(0);
+}
+
+function dateGroupKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatGeneratedDate(date: Date): string {
+  return date.getTime() === 0
+    ? "Unassigned date"
+    : date.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+}
+
 function getEligiblePosts(posts: Post[]) {
-  return posts.filter((p) => p.status !== "posted");
+  return posts
+    .filter((p) => p.status === "draft" && !p.scheduledPostId)
+    .sort((a, b) => {
+      const byDate = getPostDate(a).getTime() - getPostDate(b).getTime();
+      if (byDate !== 0) return byDate;
+      return a.id.localeCompare(b.id);
+    });
 }
 
 /* ------------------------------------------------------------------ */
@@ -90,44 +114,30 @@ export function AutoSchedulePopover({
     setSelectedIds(new Set(eligiblePosts.map((p) => p.id)));
   }, [eligiblePosts]);
 
-  // Derive initial values from already-scheduled posts so the user sees their
-  // existing schedule pre-filled and only has to tweak what they want to change.
   const [selectedDay, setSelectedDay] = useState<Date>(() => {
-    const first = posts
-      .filter((p) => p.status === "scheduled" && p.scheduledDate)
-      .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime())[0];
-    return first ? new Date(first.scheduledDate!) : initialDate ? new Date(initialDate) : new Date();
+    const first = eligiblePosts[0];
+    return initialDate
+      ? new Date(initialDate)
+      : first
+      ? new Date(getPostDate(first))
+      : new Date();
   });
 
   const [calMonth, setCalMonth] = useState<Date>(() => {
-    const first = posts
-      .filter((p) => p.status === "scheduled" && p.scheduledDate)
-      .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime())[0];
-    return first ? new Date(first.scheduledDate!) : initialDate ? new Date(initialDate) : new Date();
+    const first = eligiblePosts[0];
+    return initialDate
+      ? new Date(initialDate)
+      : first
+      ? new Date(getPostDate(first))
+      : new Date();
   });
 
   const [startTime, setStartTime] = useState<string>(() => {
-    const first = posts
-      .filter((p) => p.status === "scheduled" && p.scheduledDate)
-      .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime())[0];
-    if (!first) return "09:00";
-    const d = first.scheduledDate!;
-    return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    return "09:00";
   });
 
   const [frequencyHours, setFrequencyHours] = useState<number>(() => {
-    const scheduled = posts
-      .filter((p) => p.status === "scheduled" && p.scheduledDate)
-      .sort((a, b) => a.scheduledDate!.getTime() - b.scheduledDate!.getTime());
-    if (scheduled.length < 2) return 3;
-    const gapHours =
-      (scheduled[1].scheduledDate!.getTime() - scheduled[0].scheduledDate!.getTime()) /
-      3_600_000;
-    // Snap to the nearest available option
-    const options = [1, 2, 3, 5, 12, 24];
-    return options.reduce((best, opt) =>
-      Math.abs(opt - gapHours) < Math.abs(best - gapHours) ? opt : best
-    );
+    return 3;
   });
 
   /* ---------- derived ---------- */
@@ -135,6 +145,21 @@ export function AutoSchedulePopover({
     () => eligiblePosts.filter((p) => selectedIds.has(p.id)),
     [eligiblePosts, selectedIds]
   );
+
+  const groupedEligiblePosts = useMemo(() => {
+    const groups: Array<{ key: string; label: string; posts: Post[] }> = [];
+    for (const post of eligiblePosts) {
+      const date = getPostDate(post);
+      const key = dateGroupKey(date);
+      let group = groups.find((item) => item.key === key);
+      if (!group) {
+        group = { key, label: formatGeneratedDate(date), posts: [] };
+        groups.push(group);
+      }
+      group.posts.push(post);
+    }
+    return groups;
+  }, [eligiblePosts]);
 
   const scheduledPreviews = useMemo(() => {
     const [h, m] = startTime.split(":").map(Number);
@@ -254,7 +279,7 @@ export function AutoSchedulePopover({
     <div
       className={cn(
         "flex flex-col",
-        isMobileSheet ? "w-full" : "w-[292px]"
+        isMobileSheet ? "w-full" : "w-[560px] max-w-[calc(100vw-32px)]"
       )}
       style={
         isMobileSheet
@@ -277,7 +302,7 @@ export function AutoSchedulePopover({
             Auto-schedule posts
           </p>
           <p className="text-[11px] text-white/40 mt-0.5">
-            {selectedPosts.length} of {eligiblePosts.length} selected
+            {selectedPosts.length} of {eligiblePosts.length} unscheduled selected
           </p>
         </div>
         <button
@@ -308,57 +333,87 @@ export function AutoSchedulePopover({
       >
         {/* Section 1 — Start date (mini calendar) */}
         <div>
-          <p className="text-[11px] text-white/40 mb-1.5">Select posts</p>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <p className="text-[11px] text-white/40">Unscheduled posts</p>
+            {eligiblePosts.length > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setSelectedIds(
+                    selectedPosts.length === eligiblePosts.length
+                      ? new Set()
+                      : new Set(eligiblePosts.map((post) => post.id))
+                  )
+                }
+                className="text-[11px] font-medium transition-opacity hover:opacity-80"
+                style={{ color: "#1D9BF0" }}
+              >
+                {selectedPosts.length === eligiblePosts.length ? "Clear all" : "Select all"}
+              </button>
+            )}
+          </div>
           {eligiblePosts.length === 0 ? (
-            <p className="text-[11px] text-white/20 text-center py-4">
-              No draft or scheduled posts to schedule.
+            <p className="text-[12px] text-white/25 text-center py-8">
+              No unscheduled posts to schedule.
             </p>
           ) : (
             <div
               className="flex flex-col overflow-y-auto scrollbar-popup"
-              style={{ gap: 4, maxHeight: 132 }}
+              style={{ gap: 10, maxHeight: isMobileSheet ? 220 : 260 }}
             >
-              {eligiblePosts.map((post) => {
-                const isSelected = selectedIds.has(post.id);
-                return (
-                  <button
-                    key={post.id}
-                    onClick={() => toggleSelected(post.id)}
-                    className="flex items-start text-left transition-colors"
-                    style={{
-                      gap: 8,
-                      border: `0.5px solid ${isSelected ? "#1D9BF0" : "#2f3336"}`,
-                      borderRadius: 8,
-                      background: isSelected ? "rgba(29,155,240,0.08)" : "#1F2933",
-                      padding: "7px 9px",
-                    }}
-                  >
-                    <span
-                      className="flex items-center justify-center flex-shrink-0 mt-0.5"
-                      style={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: 4,
-                        border: `1px solid ${isSelected ? "#1D9BF0" : "rgba(255,255,255,0.25)"}`,
-                        background: isSelected ? "#1D9BF0" : "transparent",
-                      }}
-                    >
-                      {isSelected && <Check className="w-3 h-3 text-white" />}
+              {groupedEligiblePosts.map((group) => (
+                <div key={group.key} className="flex flex-col" style={{ gap: 5 }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/45 text-[11px] font-medium">
+                      {group.label}
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <span
-                        className="block text-white/75 line-clamp-2"
-                        style={{ fontSize: 11, lineHeight: 1.35 }}
-                      >
-                        {post.content}
-                      </span>
-                      <span className="text-white/35" style={{ fontSize: 10 }}>
-                        {post.status === "scheduled" ? "Reschedule existing" : "Draft"}
-                      </span>
+                    <span className="text-white/25 text-[10px]">
+                      {group.posts.length} post{group.posts.length !== 1 ? "s" : ""}
                     </span>
-                  </button>
-                );
-              })}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2" style={{ gap: 6 }}>
+                    {group.posts.map((post) => {
+                      const isSelected = selectedIds.has(post.id);
+                      return (
+                        <button
+                          key={post.id}
+                          onClick={() => toggleSelected(post.id)}
+                          className="flex items-start text-left transition-colors"
+                          style={{
+                            gap: 9,
+                            minHeight: 76,
+                            border: `0.5px solid ${isSelected ? "#1D9BF0" : "#2f3336"}`,
+                            borderRadius: 8,
+                            background: isSelected ? "rgba(29,155,240,0.08)" : "#1F2933",
+                            padding: "9px 10px",
+                          }}
+                        >
+                          <span
+                            className="flex items-center justify-center flex-shrink-0 mt-0.5"
+                            style={{
+                              width: 18,
+                              height: 18,
+                              borderRadius: 5,
+                              border: `1px solid ${isSelected ? "#1D9BF0" : "rgba(255,255,255,0.25)"}`,
+                              background: isSelected ? "#1D9BF0" : "transparent",
+                            }}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span
+                              className="block text-white/80 line-clamp-3"
+                              style={{ fontSize: 12, lineHeight: 1.4 }}
+                            >
+                              {post.content}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
