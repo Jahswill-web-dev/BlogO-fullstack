@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { GradientButton } from "@/components/ui/buttons/gradientButton";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 export function ProfileSettingsEditor() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isReady } = useProtectedRoute();
 
   const [profileLoading, setProfileLoading] = useState(true);
@@ -25,6 +26,13 @@ export function ProfileSettingsEditor() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const requestedStep = searchParams.get("step");
+  const requestedReturnTo = searchParams.get("returnTo");
+  const returnTo =
+    requestedReturnTo?.startsWith("/") && !requestedReturnTo.startsWith("//")
+      ? requestedReturnTo
+      : "/dashboard";
+
   useEffect(() => {
     if (!isReady) return;
     api
@@ -38,12 +46,15 @@ export function ProfileSettingsEditor() {
           : [];
         setSelectedNiche(profile.userNiche ?? "");
         setSelectedFocusAreas(parsed);
+        setSubStep(
+          requestedStep === "focus-areas" && profile.userNiche ? 1 : 0
+        );
       })
       .catch(() => {
         setLoadError("Could not load your profile. Please try again.");
       })
       .finally(() => setProfileLoading(false));
-  }, [isReady]);
+  }, [isReady, requestedStep]);
 
   const handleSave = async () => {
     if (!selectedNiche.trim()) {
@@ -77,7 +88,7 @@ export function ProfileSettingsEditor() {
   };
 
   const handleGoToDashboard = () => {
-    router.push("/dashboard");
+    router.push(returnTo);
   };
 
   if (!isReady || profileLoading) return <LoadingSpinner />;

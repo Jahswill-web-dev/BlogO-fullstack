@@ -86,6 +86,8 @@ const mobileVariants = {
 const MIN_SLIDES = 1;
 const MAX_SLIDES = 15;
 const PRESET_SLIDES = [4, 7, 12];
+const FOCUS_AREA_SETTINGS_HREF =
+  "/settings/profile?step=focus-areas&returnTo=/dashboard";
 
 /* ------------------------------------------------------------------ */
 /*  Shared pill styles                                                  */
@@ -142,13 +144,6 @@ function PanelContent({
   );
   const [slideCount, setSlideCount] = useState(7);
   const [generationError, setGenerationError] = useState<string | null>(null);
-
-  // Re-initialise whenever the panel (re-)opens with a different niche/focus areas
-  useEffect(() => {
-    setSelectedFocusAreas(userFocusAreas[0] ? [userFocusAreas[0]] : []);
-    setSlideCount(7);
-    setGenerationError(null);
-  }, [userNiche, userFocusAreas]);
 
   const decrement = () => setSlideCount((c) => Math.max(MIN_SLIDES, c - 1));
   const increment = () => setSlideCount((c) => Math.min(MAX_SLIDES, c + 1));
@@ -287,9 +282,7 @@ function PanelContent({
             <p style={{ fontSize: 11, color: "#ffff", marginBottom: 14 }}>
               {userNiche} - Select one or more
             </p>
-            <div
-              style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}
-            >
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
               {userFocusAreas.map((area) => (
                 <button
                   key={area}
@@ -300,12 +293,27 @@ function PanelContent({
                 </button>
               ))}
             </div>
+            <p style={{ fontSize: 12, color: "#777", marginBottom: 24 }}>
+              Want different focus areas?{" "}
+              <Link
+                href={FOCUS_AREA_SETTINGS_HREF}
+                className="underline cursor-pointer hover:text-white transition-colors"
+              >
+                Update them in Settings.
+              </Link>
+            </p>
             {/* Divider */}
             <div style={{ borderTop: "1px solid #1e1e2a", marginBottom: 20 }} />
           </>
         ) : (
           <p style={{ fontSize: 13, color: "#555", marginBottom: 24 }}>
-            No focus areas found. Update them in <Link href="/settings" className="underline cursor-pointer">Settings.</Link>
+            No focus areas found. Update them in{" "}
+            <Link
+              href={FOCUS_AREA_SETTINGS_HREF}
+              className="underline cursor-pointer hover:text-white transition-colors"
+            >
+              Settings.
+            </Link>
           </p>
         )}
 
@@ -505,13 +513,6 @@ export function GeneratePanel({
     targetDate ?? new Date()
   );
 
-  // Reset selected date when panel opens with a new targetDate
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedScheduleDate(targetDate ?? new Date());
-    }
-  }, [isOpen, targetDate]);
-
   // Fetch plan + usage when panel opens
   useEffect(() => {
     if (!isOpen) return;
@@ -574,6 +575,7 @@ export function GeneratePanel({
 
   const sharedContent = (
     <PanelContent
+      key={`${userNiche}:${userFocusAreas.join("|")}`}
       onClose={onClose}
       userNiche={userNiche}
       userFocusAreas={userFocusAreas}
