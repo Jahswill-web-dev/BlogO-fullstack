@@ -2,13 +2,14 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Menu, Plus } from "lucide-react";
+import { Menu, PenLine, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { useTrialAccess } from "@/hooks/useTrialAccess";
 import { api, ApiPost, PlanKey, UserProfile, ScheduledApiPost } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { GeneratePanel } from "@/components/GeneratePanel";
+import { WritePostModal } from "@/components/WritePostModal";
 import { DashboardSidebar } from "@/components/modules/DashboardSidebar";
 import {
   EditScheduleModal,
@@ -39,7 +40,9 @@ export default function DashboardPage() {
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [onboardingPosts, setOnboardingPosts] = useState<Post[]>([]);
   const [showGeneratePanel, setShowGeneratePanel] = useState(false);
+  const [showWriteModal, setShowWriteModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isWriting, setIsWriting] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const userFocusAreas: string[] = userProfile?.focusArea
     ? userProfile.focusArea.split(",").map((s) => s.trim()).filter(Boolean)
@@ -537,6 +540,42 @@ export default function DashboardPage() {
     }
   };
 
+  const handleWritePost = async (input: string) => {
+    if (!(await ensureAccess())) {
+      return;
+    }
+
+    setIsWriting(true);
+    try {
+      const scheduledFor = dayKey(calendarSelectedDay ?? new Date());
+      const res = await api.writePost({ input, scheduledFor });
+      const p = res.post;
+      const targetDate = p.targetDate ? new Date(p.targetDate) : new Date();
+      const newPost: Post = {
+        id: p._id ?? p.id ?? crypto.randomUUID(),
+        content: p.finalPost,
+        platform: "Twitter" as const,
+        status: "draft" as const,
+        scheduledDate: targetDate,
+        targetDate,
+      };
+
+      setPosts((prev) => [newPost, ...prev]);
+      setDetailPost(newPost);
+      setShowWriteModal(false);
+      setCalendarSelectedDay(null);
+      refreshAccessStatus().catch(() => {});
+      toast.success("Post improved and saved as a draft.");
+    } catch (err) {
+      if (handleAccessError(err)) {
+        return;
+      }
+      throw err;
+    } finally {
+      setIsWriting(false);
+    }
+  };
+
   const handleBulkSchedule = async (scheduledPosts: Post[]) => {
     if (scheduledPosts.length === 0) return;
 
@@ -806,7 +845,15 @@ export default function DashboardPage() {
               </div>
 
               {/* Right — create button */}
-              <div className="flex items-center justify-end">
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs sm:text-sm font-medium text-white/75 transition-colors hover:border-white/20 hover:text-white"
+                  style={{ background: "#14141d", borderColor: "#2a2a3a" }}
+                  onClick={() => { setCalendarSelectedDay(null); setShowWriteModal(true); }}
+                >
+                  <PenLine className="w-3.5 h-3.5" />
+                  <span>Write</span>
+                </button>
                 <button
                   className="flex items-center gap-1.5 text-white rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium hover:opacity-90 transition-opacity"
                   style={{ background: "#5C3FED" }}
@@ -1106,6 +1153,20 @@ export default function DashboardPage() {
               />
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showWriteModal && (
+          <WritePostModal
+            key="write-post-modal"
+            isOpen={showWriteModal}
+            isWriting={isWriting}
+            onClose={() => {
+              if (!isWriting) setShowWriteModal(false);
+            }}
+            onImprove={handleWritePost}
+          />
         )}
       </AnimatePresence>
 

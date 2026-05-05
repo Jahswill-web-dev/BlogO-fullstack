@@ -156,6 +156,7 @@ type GetProfileResponse = {
 /** Returned by GET /posts */
 export type ApiPost = {
   _id: string;
+  id?: string;
   finalPost: string;
   status?: string;
   scheduledDate?: string;
@@ -393,6 +394,16 @@ export const api = {
   }) =>
     apiFetch<{ success: boolean; posts: unknown[]; remaining: number }>(
       "/api/generate-post",
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      }
+    ),
+
+  /** Turn a user idea, rough draft, or full post into one polished post */
+  writePost: (body: { input: string; scheduledFor?: string }) =>
+    apiFetch<{ success: boolean; post: ApiPost; remaining: number }>(
+      "/api/write-post",
       {
         method: "POST",
         body: JSON.stringify(body),
