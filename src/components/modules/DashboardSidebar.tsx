@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Archive, Home, LogOut, Settings } from "lucide-react";
+import { FileText, Home, LogOut, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { api, AuthUser } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -138,9 +138,9 @@ export function DashboardSidebar({
             href="/dashboard"
           />
           <NavItem
-            icon={<Archive className="w-4 h-4" />}
-            label="Archive"
-            href="/archive"
+            icon={<FileText className="w-4 h-4" />}
+            label="Drafts"
+            href="/drafts"
           />
         </nav>
         <div className="px-3 pb-4 space-y-1 border-t border-white/10 pt-4">
