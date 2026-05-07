@@ -11,9 +11,9 @@ export function PricingPageContent() {
       {/* Creator Plan */}
       <PricingCard
         title="Creator Plan"
-        originalPrice="$39/mo"
-        currentPrice="$29/mo"
-        priceNote="First 50 users only — then $39/mo"
+        originalPrice="$29/mo"
+        currentPrice="$19/mo"
+        priceNote="First 50 users only — then $29/mo"
         features={[
           "4 posts per day",
           "120 posts/month",
@@ -27,7 +27,7 @@ export function PricingPageContent() {
       <PricingCard
         title="Builder Plan"
         originalPrice="$59/mo"
-        currentPrice="$49/mo"
+        currentPrice="$39/mo"
         priceNote="First 50 users only — then $59/mo"
         features={[
           "7 posts per day",
